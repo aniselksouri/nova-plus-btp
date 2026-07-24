@@ -1,0 +1,11 @@
+node_modules
+.git
+.DS_Store
+.env
+data/state.json
+data/uploads/*
+graphify-out
+guide-preview*
+preview*.png
+guide-*.png
+tmp

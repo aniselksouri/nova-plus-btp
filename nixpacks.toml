@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["echo 'No dependencies to install'"]
+
+[phases.build]
+cmds = ["node --check server.js", "node --check app.js"]
+
+[start]
+cmd = "node server.js"

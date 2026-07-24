@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: nova-plus-btp
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data/nova
+      - key: NOVA_AUTH_PASSWORD
+        sync: false
+    disk:
+      name: nova-data
+      mountPath: /var/data
+      sizeGB: 5

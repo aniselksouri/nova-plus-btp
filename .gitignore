@@ -1,0 +1,16 @@
+node_modules/
+.DS_Store
+.env
+npm-debug.log*
+tmp/
+graphify-out/
+
+# Captures et rendus de travail
+preview*.png
+guide-*.png
+guide-preview*/
+
+# Données client locales, à ne pas pousser dans Git
+data/state.json
+data/uploads/*
+!data/uploads/.gitkeep
