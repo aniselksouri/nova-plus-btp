@@ -2128,7 +2128,6 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
   }
   const invoiceNumber = `ST-${project.id}-${subcontractor.id}`.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 48);
   const generatedAt = new Date().toLocaleDateString("fr-FR");
-  const targetMargin = Number(state.settings.targetMargin || 0);
   const rows = invoiceProject.lots
     .map(
       (lot) => `
@@ -2138,8 +2137,6 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
             <span>${escapeHtml(lot.source || "Lot chantier")}</span>
           </td>
           <td>${percentFormatter.format(lot.progress)}%</td>
-          <td>${money(lot.subcontractorAmount)}</td>
-          <td>${money(lot.marginDeduction)}</td>
           <td>${money(lot.netHt)}</td>
         </tr>
       `
@@ -2227,7 +2224,7 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
           }
           .summary {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
             margin: 26px 0;
           }
@@ -2279,15 +2276,6 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
             font-size: 12px;
             font-weight: 650;
           }
-          .formula {
-            margin-top: 26px;
-            padding: 18px;
-            border-radius: 18px;
-            color: #342a86;
-            background: #f1efff;
-            font-size: 14px;
-            font-weight: 760;
-          }
           footer {
             display: flex;
             justify-content: space-between;
@@ -2333,7 +2321,7 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
               <span>Généré le ${generatedAt}</span>
             </div>
           </header>
-          <h1>Facture sous-traitant HT par lot</h1>
+          <h1>Facture sous-traitant HT</h1>
           <section class="meta">
             <div class="box"><span>Chantier</span><strong>${escapeHtml(project.name)}</strong></div>
             <div class="box"><span>Client</span><strong>${escapeHtml(project.client || "Client non renseigné")}</strong></div>
@@ -2341,28 +2329,22 @@ function exportSubcontractorInvoice(subcontractorId, projectId) {
             <div class="box"><span>Sous-traitant</span><strong>${escapeHtml(subcontractor.companyName)}${subcontractor.trade ? ` · ${escapeHtml(subcontractor.trade)}` : ""}</strong></div>
           </section>
           <section class="summary">
-            <article><span>Montant sous-traitant HT</span><strong>${money(invoiceProject.totalSubcontractor)}</strong></article>
-            <article><span>Objectif marge retenu</span><strong>${percentFormatter.format(targetMargin)}%</strong></article>
-            <article><span>Net à facturer HT</span><strong>${money(invoiceProject.totalNetHt)}</strong></article>
+            <article><span>Nombre de lots</span><strong>${invoiceProject.lots.length}</strong></article>
+            <article><span>Total HT</span><strong>${money(invoiceProject.totalNetHt)}</strong></article>
           </section>
           <table>
             <thead>
               <tr>
                 <th>Lot</th>
                 <th>Avancement</th>
-                <th>Montant ST HT</th>
-                <th>Marge objectif</th>
-                <th>Net HT</th>
+                <th>Montant HT</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
-          <div class="formula">
-            Calcul appliqué lot par lot : montant sous-traitant HT - objectif marge (${percentFormatter.format(targetMargin)}%) = net à facturer HT.
-          </div>
           <footer>
             <span>Document de préparation généré par Nova+.</span>
-            <span>Total marge objectif : ${money(invoiceProject.totalMarginDeduction)}</span>
+            <span>Total HT : ${money(invoiceProject.totalNetHt)}</span>
           </footer>
         </main>
         <script>setTimeout(() => window.print(), 450);</script>
