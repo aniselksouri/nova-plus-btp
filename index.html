@@ -585,6 +585,18 @@
     </div>
 
     <datalist id="supplierNameOptions"></datalist>
+    <dialog id="documentPreviewModal" class="document-preview-modal">
+      <div class="document-preview-shell">
+        <div class="document-preview-head">
+          <div>
+            <span>Aperçu document</span>
+            <strong id="documentPreviewTitle">Fichier</strong>
+          </div>
+          <button class="upload-button compact" type="button" data-close-document-preview>Fermer</button>
+        </div>
+        <div id="documentPreviewBody" class="document-preview-body"></div>
+      </div>
+    </dialog>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="./app.js"></script>

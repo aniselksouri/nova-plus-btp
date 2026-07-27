@@ -291,6 +291,9 @@ const elements = {
   projectDocumentFilesInput: document.querySelector("#projectDocumentFilesInput"),
   pendingProjectDocumentsSummary: document.querySelector("#pendingProjectDocumentsSummary"),
   pendingProjectDocumentsList: document.querySelector("#pendingProjectDocumentsList"),
+  documentPreviewModal: document.querySelector("#documentPreviewModal"),
+  documentPreviewTitle: document.querySelector("#documentPreviewTitle"),
+  documentPreviewBody: document.querySelector("#documentPreviewBody"),
   projectDocumentsList: document.querySelector("#projectDocumentsList"),
   calendarProjectFilter: document.querySelector("#calendarProjectFilter"),
   calendarTypeFilter: document.querySelector("#calendarTypeFilter"),
@@ -1586,7 +1589,7 @@ function renderPendingProjectDocuments() {
     .map(
       (file, index) => `
         <article class="pending-file-row">
-          <div class="document-file-icon">${documentIcon(file.type || file.name)}</div>
+          <button class="document-file-icon preview-trigger" type="button" data-preview-pending-project-document="${index}" aria-label="Aperçu ${escapeHtml(file.name)}">${documentIcon(file.type || file.name)}</button>
           <div>
             <strong>${escapeHtml(file.name)}</strong>
             <span>${escapeHtml(file.type || "Type non détecté")} · ${formatFileSize(file.size || 0)}</span>
@@ -1596,6 +1599,53 @@ function renderPendingProjectDocuments() {
       `
     )
     .join("");
+}
+
+function openPendingProjectDocumentPreview(index) {
+  const file = pendingProjectDocumentFiles[index];
+  if (!file || !elements.documentPreviewModal || !elements.documentPreviewTitle || !elements.documentPreviewBody) return;
+  const fileUrl = URL.createObjectURL(file);
+  const icon = documentIcon(file.type || file.name);
+  elements.documentPreviewTitle.textContent = `${file.name} · ${formatFileSize(file.size || 0)}`;
+  elements.documentPreviewBody.innerHTML = "";
+
+  if (icon === "IMG") {
+    elements.documentPreviewBody.innerHTML = `<img src="${fileUrl}" alt="${escapeHtml(file.name)}" />`;
+  } else if (icon === "PDF") {
+    elements.documentPreviewBody.innerHTML = `<iframe src="${fileUrl}" title="Aperçu ${escapeHtml(file.name)}"></iframe>`;
+  } else if (file.type?.startsWith("text/") || /\.(txt|csv)$/i.test(file.name)) {
+    file.text().then((content) => {
+      if (!elements.documentPreviewModal.open) URL.revokeObjectURL(fileUrl);
+      elements.documentPreviewBody.innerHTML = `<pre>${escapeHtml(content.slice(0, 12000))}${content.length > 12000 ? "\n\n..." : ""}</pre>`;
+    });
+  } else {
+    elements.documentPreviewBody.innerHTML = `
+      <div class="document-preview-empty">
+        <strong>Aperçu non disponible</strong>
+        <span>${escapeHtml(file.name)} · ${escapeHtml(file.type || "Type non détecté")} · ${formatFileSize(file.size || 0)}</span>
+      </div>
+    `;
+  }
+
+  elements.documentPreviewModal.dataset.previewUrl = fileUrl;
+  if (typeof elements.documentPreviewModal.showModal === "function") {
+    elements.documentPreviewModal.showModal();
+  } else {
+    elements.documentPreviewModal.setAttribute("open", "");
+  }
+}
+
+function closeDocumentPreview() {
+  if (!elements.documentPreviewModal) return;
+  const previewUrl = elements.documentPreviewModal.dataset.previewUrl;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  delete elements.documentPreviewModal.dataset.previewUrl;
+  if (elements.documentPreviewModal.open && typeof elements.documentPreviewModal.close === "function") {
+    elements.documentPreviewModal.close();
+  } else {
+    elements.documentPreviewModal.removeAttribute("open");
+  }
+  if (elements.documentPreviewBody) elements.documentPreviewBody.innerHTML = "";
 }
 
 function projectDocumentFiles(document) {
@@ -2735,6 +2785,22 @@ function bindEvents() {
     const removePendingDocumentButton = event.target.closest("[data-remove-pending-project-document]");
     if (removePendingDocumentButton) {
       removePendingProjectDocumentFile(Number(removePendingDocumentButton.dataset.removePendingProjectDocument));
+      return;
+    }
+
+    const previewPendingDocumentButton = event.target.closest("[data-preview-pending-project-document]");
+    if (previewPendingDocumentButton) {
+      openPendingProjectDocumentPreview(Number(previewPendingDocumentButton.dataset.previewPendingProjectDocument));
+      return;
+    }
+
+    if (event.target.closest("[data-close-document-preview]")) {
+      closeDocumentPreview();
+      return;
+    }
+
+    if (event.target === elements.documentPreviewModal) {
+      closeDocumentPreview();
       return;
     }
 
