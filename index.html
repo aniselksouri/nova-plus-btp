@@ -429,10 +429,20 @@
               </label>
               <label class="setting-field">
                 <span>Fichiers</span>
-                <input name="files" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple required />
+                <input id="projectDocumentFilesInput" name="files" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple />
               </label>
             </div>
-            <button class="primary-button compact" type="submit">Ajouter au chantier</button>
+            <div class="pending-files-panel">
+              <div class="pending-files-head">
+                <div>
+                  <span>Fichiers en attente</span>
+                  <strong id="pendingProjectDocumentsSummary">Aucun fichier sélectionné</strong>
+                </div>
+                <button class="upload-button compact danger-button" type="button" data-clear-pending-project-documents>Vider</button>
+              </div>
+              <div id="pendingProjectDocumentsList" class="pending-files-list"></div>
+            </div>
+            <button class="primary-button compact" type="submit">Ajouter les documents</button>
           </form>
           <div id="projectDocumentsList" class="documents-board"></div>
         </section>

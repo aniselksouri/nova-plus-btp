@@ -1,6 +1,7 @@
 const STORAGE_KEY = "nova-plus-mvp-state-v3";
 const SERVER_STORAGE_ENABLED = window.location.protocol !== "file:";
 let serverSaveTimer = null;
+let pendingProjectDocumentFiles = [];
 
 const defaultState = {
   activeView: "dashboard",
@@ -287,6 +288,9 @@ const elements = {
   projectDocumentsStatus: document.querySelector("#projectDocumentsStatus"),
   projectDocumentsContext: document.querySelector("#projectDocumentsContext"),
   projectDocumentForm: document.querySelector("#projectDocumentForm"),
+  projectDocumentFilesInput: document.querySelector("#projectDocumentFilesInput"),
+  pendingProjectDocumentsSummary: document.querySelector("#pendingProjectDocumentsSummary"),
+  pendingProjectDocumentsList: document.querySelector("#pendingProjectDocumentsList"),
   projectDocumentsList: document.querySelector("#projectDocumentsList"),
   calendarProjectFilter: document.querySelector("#calendarProjectFilter"),
   calendarTypeFilter: document.querySelector("#calendarTypeFilter"),
@@ -1535,6 +1539,65 @@ function renderProjectDocuments() {
     .join("");
 }
 
+function addPendingProjectDocumentFiles(fileList) {
+  const incoming = [...(fileList || [])].filter((file) => file?.name && file.size > 0);
+  if (!incoming.length) {
+    renderPendingProjectDocuments();
+    return;
+  }
+  incoming.forEach((file) => {
+    const alreadyExists = pendingProjectDocumentFiles.some(
+      (item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified
+    );
+    if (!alreadyExists) pendingProjectDocumentFiles.push(file);
+  });
+  renderPendingProjectDocuments();
+}
+
+function clearPendingProjectDocumentFiles() {
+  pendingProjectDocumentFiles = [];
+  if (elements.projectDocumentFilesInput) elements.projectDocumentFilesInput.value = "";
+  renderPendingProjectDocuments();
+}
+
+function removePendingProjectDocumentFile(index) {
+  pendingProjectDocumentFiles.splice(index, 1);
+  if (elements.projectDocumentFilesInput) elements.projectDocumentFilesInput.value = "";
+  renderPendingProjectDocuments();
+}
+
+function renderPendingProjectDocuments() {
+  if (!elements.pendingProjectDocumentsList || !elements.pendingProjectDocumentsSummary) return;
+  const totalSize = pendingProjectDocumentFiles.reduce((sum, file) => sum + Number(file.size || 0), 0);
+  elements.pendingProjectDocumentsSummary.textContent = pendingProjectDocumentFiles.length
+    ? `${pendingProjectDocumentFiles.length} fichier(s) prêts · ${formatFileSize(totalSize)}`
+    : "Aucun fichier sélectionné";
+
+  if (!pendingProjectDocumentFiles.length) {
+    elements.pendingProjectDocumentsList.innerHTML = `
+      <div class="pending-files-empty">
+        Cliquez sur “Choisir des fichiers” autant de fois que nécessaire. Rien n'est ajouté au chantier avant validation.
+      </div>
+    `;
+    return;
+  }
+
+  elements.pendingProjectDocumentsList.innerHTML = pendingProjectDocumentFiles
+    .map(
+      (file, index) => `
+        <article class="pending-file-row">
+          <div class="document-file-icon">${documentIcon(file.type || file.name)}</div>
+          <div>
+            <strong>${escapeHtml(file.name)}</strong>
+            <span>${escapeHtml(file.type || "Type non détecté")} · ${formatFileSize(file.size || 0)}</span>
+          </div>
+          <button class="upload-button compact danger-button" type="button" data-remove-pending-project-document="${index}">Retirer</button>
+        </article>
+      `
+    )
+    .join("");
+}
+
 function projectDocumentFiles(document) {
   if (Array.isArray(document.files)) return document.files.filter(Boolean);
   return document.file ? [document.file] : [];
@@ -2669,6 +2732,17 @@ function bindEvents() {
       return;
     }
 
+    const removePendingDocumentButton = event.target.closest("[data-remove-pending-project-document]");
+    if (removePendingDocumentButton) {
+      removePendingProjectDocumentFile(Number(removePendingDocumentButton.dataset.removePendingProjectDocument));
+      return;
+    }
+
+    if (event.target.closest("[data-clear-pending-project-documents]")) {
+      clearPendingProjectDocumentFiles();
+      return;
+    }
+
     const deleteProjectDocumentButton = event.target.closest("[data-delete-project-document]");
     if (deleteProjectDocumentButton) {
       const project = activeProject();
@@ -2762,6 +2836,10 @@ function bindEvents() {
   elements.pdfInput.addEventListener("change", (event) => handlePdfChoice(event.target.files[0]));
   elements.pdfInputSecondary.addEventListener("change", (event) => handlePdfChoice(event.target.files[0]));
   elements.orderPdfInput.addEventListener("change", (event) => handleOrderPdfChoice(event.target.files[0]));
+  elements.projectDocumentFilesInput.addEventListener("change", (event) => {
+    addPendingProjectDocumentFiles(event.target.files);
+    event.target.value = "";
+  });
 
   elements.resetDataButton.addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY);
@@ -2866,8 +2944,7 @@ function bindEvents() {
     event.preventDefault();
     const project = activeProject();
     const form = new FormData(elements.projectDocumentForm);
-    const selectedFiles = [...elements.projectDocumentForm.querySelector('input[type="file"]').files, ...form.getAll("files"), form.get("file")]
-      .filter((file, index, files) => file?.name && files.findIndex((item) => item?.name === file.name && item?.size === file.size) === index);
+    const selectedFiles = pendingProjectDocumentFiles.filter((file, index, files) => file?.name && files.findIndex((item) => item?.name === file.name && item?.size === file.size && item?.lastModified === file.lastModified) === index);
     elements.projectDocumentsStatus.textContent = selectedFiles.length ? `Lecture de ${selectedFiles.length} fichier(s)...` : "Aucun fichier sélectionné";
     if (!selectedFiles.length) return;
     const storedFiles = await Promise.all(selectedFiles.map((file) => fileToStoredDocument(file)));
@@ -2893,6 +2970,7 @@ function bindEvents() {
       return;
     }
     elements.projectDocumentForm.reset();
+    clearPendingProjectDocumentFiles();
     renderProjectDocuments();
   });
 
@@ -3710,6 +3788,7 @@ function renderAll() {
   renderBilling();
   renderOrders();
   renderProjectDocuments();
+  renderPendingProjectDocuments();
   renderCalendar();
   renderLibrary();
   renderSuppliers();

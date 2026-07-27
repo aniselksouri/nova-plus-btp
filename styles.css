@@ -2251,6 +2251,84 @@ td select:disabled {
   gap: 16px;
 }
 
+.pending-files-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 248, 253, 0.9)),
+    radial-gradient(circle at 0% 0%, rgba(83, 71, 206, 0.08), transparent 32%);
+}
+
+.pending-files-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pending-files-head span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 840;
+  text-transform: uppercase;
+}
+
+.pending-files-head strong {
+  display: block;
+  margin-top: 4px;
+  color: #171922;
+  font-size: 14px;
+}
+
+.pending-files-list {
+  display: grid;
+}
+
+.pending-files-empty {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 690;
+  line-height: 1.45;
+}
+
+.pending-file-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pending-file-row:last-child {
+  border-bottom: 0;
+}
+
+.pending-file-row strong,
+.pending-file-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-file-row strong {
+  color: #171922;
+  font-size: 13px;
+}
+
+.pending-file-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+}
+
 .supplier-card {
   min-height: 250px;
 }
