@@ -540,10 +540,50 @@ function subcontractorAssignments(subcontractorId) {
         endDate: project.endDate || project.startDate || "",
         progress: lotProgress(lot),
         sale: Number(lot.sale || 0),
+        amount: Number(lot.labor || 0),
       });
     });
   });
   return assignments.sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
+}
+
+function subcontractorInvoiceProjects(subcontractorId) {
+  const targetMargin = Number(state.settings.targetMargin || 0);
+  return state.projects
+    .map((project) => {
+      const lots = (project.lots || [])
+        .filter((lot) => laborType(lot) === "subcontractor" && lot.subcontractorId === subcontractorId)
+        .map((lot) => {
+          const subcontractorAmount = Number(lot.labor || 0);
+          const marginDeduction = subcontractorAmount * (targetMargin / 100);
+          return {
+            id: lot.id,
+            name: lot.name,
+            source: lot.source || "",
+            progress: lotProgress(lot),
+            subcontractorAmount,
+            marginDeduction,
+            netHt: Math.max(0, subcontractorAmount - marginDeduction),
+          };
+        });
+      const totalSubcontractor = lots.reduce((sum, lot) => sum + lot.subcontractorAmount, 0);
+      const totalMarginDeduction = lots.reduce((sum, lot) => sum + lot.marginDeduction, 0);
+      const totalNetHt = lots.reduce((sum, lot) => sum + lot.netHt, 0);
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        client: project.client,
+        address: project.address,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        lots,
+        totalSubcontractor,
+        totalMarginDeduction,
+        totalNetHt,
+      };
+    })
+    .filter((project) => project.lots.length)
+    .sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
 }
 
 function subcontractorInvoiceReminders(subcontractorId) {
@@ -1946,6 +1986,7 @@ function renderSubcontractors() {
   state.subcontractors.filter((subcontractor) => includesSearch(subcontractor.companyName, subcontractor.trade)).forEach((subcontractor) => {
     const assignments = subcontractorAssignments(subcontractor.id);
     const invoiceReminders = subcontractorInvoiceReminders(subcontractor.id);
+    const invoiceProjects = subcontractorInvoiceProjects(subcontractor.id);
     const capacity = subcontractorCapacity(subcontractor);
     const simultaneous = maxSimultaneousAssignments(assignments);
     const overloaded = simultaneous > capacity;
@@ -1984,6 +2025,13 @@ function renderSubcontractors() {
         </div>
         ${renderSubcontractorInvoices(invoiceReminders)}
       </div>
+      <div class="subcontractor-invoices">
+        <div class="subcontractor-section-title">
+          <span>Factures HT par chantier</span>
+          <strong>${invoiceProjects.length}</strong>
+        </div>
+        ${renderSubcontractorInvoiceExports(subcontractor, invoiceProjects)}
+      </div>
       <div class="documents-list">
         ${renderDocumentLink("KBIS", subcontractor.documents?.kbis)}
         ${renderDocumentLink("Assurance", subcontractor.documents?.insurance)}
@@ -1993,6 +2041,36 @@ function renderSubcontractors() {
     `;
     elements.subcontractorsGrid.appendChild(card);
   });
+}
+
+function renderSubcontractorInvoiceExports(subcontractor, invoiceProjects) {
+  if (!invoiceProjects.length) {
+    return `<div class="subcontractor-empty">Aucun lot de chantier sélectionné pour ce sous-traitant.</div>`;
+  }
+  return invoiceProjects
+    .map((invoiceProject) => {
+      const color = projectColor(invoiceProject.projectId);
+      const isActive = invoiceProject.projectId === activeProject().id;
+      return `
+        <article class="subcontractor-export-row ${isActive ? "is-active-project" : ""}" style="--project-color: ${color.color}; --project-bg: ${color.bg};">
+          <div>
+            <span>${isActive ? "Chantier actif" : "Chantier"}</span>
+            <strong>${escapeHtml(invoiceProject.projectName)}</strong>
+            <small>${invoiceProject.lots.length} lot(s) · ${escapeHtml(invoiceProject.client || "Client non renseigné")}</small>
+          </div>
+          <div class="subcontractor-export-metrics">
+            <span>${money(invoiceProject.totalSubcontractor)}</span>
+            <small>Montant ST</small>
+          </div>
+          <div class="subcontractor-export-metrics">
+            <span>${money(invoiceProject.totalNetHt)}</span>
+            <small>Net HT</small>
+          </div>
+          <button type="button" class="primary-button compact" data-export-subcontractor-invoice="${subcontractor.id}:${invoiceProject.projectId}">Exporter PDF</button>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function renderSubcontractorInvoices(reminders) {
@@ -2037,6 +2115,268 @@ function renderSubcontractorPlanning(assignments) {
       `;
     })
     .join("");
+}
+
+function exportSubcontractorInvoice(subcontractorId, projectId) {
+  const subcontractor = state.subcontractors.find((item) => item.id === subcontractorId);
+  const project = state.projects.find((item) => item.id === projectId);
+  if (!subcontractor || !project) return;
+  const invoiceProject = subcontractorInvoiceProjects(subcontractorId).find((item) => item.projectId === projectId);
+  if (!invoiceProject || !invoiceProject.lots.length) {
+    alert("Aucun lot sous-traitant à exporter sur ce chantier.");
+    return;
+  }
+  const invoiceNumber = `ST-${project.id}-${subcontractor.id}`.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 48);
+  const generatedAt = new Date().toLocaleDateString("fr-FR");
+  const targetMargin = Number(state.settings.targetMargin || 0);
+  const rows = invoiceProject.lots
+    .map(
+      (lot) => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(lot.name)}</strong>
+            <span>${escapeHtml(lot.source || "Lot chantier")}</span>
+          </td>
+          <td>${percentFormatter.format(lot.progress)}%</td>
+          <td>${money(lot.subcontractorAmount)}</td>
+          <td>${money(lot.marginDeduction)}</td>
+          <td>${money(lot.netHt)}</td>
+        </tr>
+      `
+    )
+    .join("");
+  const html = `
+    <!doctype html>
+    <html lang="fr">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(invoiceNumber)} - ${escapeHtml(subcontractor.companyName)}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            padding: 34px;
+            color: #11131c;
+            background: #eef2f7;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+          }
+          .page {
+            max-width: 920px;
+            min-height: 1180px;
+            margin: 0 auto;
+            padding: 44px;
+            border-radius: 28px;
+            background:
+              radial-gradient(circle at 86% 8%, rgba(136, 124, 253, 0.2), transparent 26%),
+              radial-gradient(circle at 14% 16%, rgba(28, 200, 199, 0.14), transparent 28%),
+              #ffffff;
+            box-shadow: 0 28px 70px rgba(34, 38, 72, 0.16);
+          }
+          header {
+            display: flex;
+            justify-content: space-between;
+            gap: 28px;
+            padding-bottom: 28px;
+            border-bottom: 1px solid #e3e7f0;
+          }
+          .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: #342a86;
+            font-weight: 900;
+            font-size: 26px;
+          }
+          .mark {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #5347ce, #887cfd);
+            box-shadow: 0 14px 30px rgba(83, 71, 206, 0.25);
+          }
+          h1 {
+            max-width: 620px;
+            margin: 30px 0 10px;
+            font-size: 42px;
+            line-height: 1;
+            letter-spacing: 0;
+          }
+          .meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin: 28px 0;
+          }
+          .box {
+            padding: 16px;
+            border: 1px solid #e2e6f0;
+            border-radius: 18px;
+            background: rgba(248, 250, 254, 0.84);
+          }
+          .box span, .summary span {
+            display: block;
+            color: #73788a;
+            font-size: 11px;
+            font-weight: 850;
+            text-transform: uppercase;
+          }
+          .box strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 16px;
+          }
+          .summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin: 26px 0;
+          }
+          .summary article {
+            padding: 18px;
+            border-radius: 20px;
+            background: linear-gradient(180deg, #ffffff, #f7f8fd);
+            border: 1px solid #e2e6f0;
+          }
+          .summary strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 24px;
+          }
+          .summary article:last-child {
+            color: #ffffff;
+            background: linear-gradient(135deg, #5347ce, #887cfd);
+            border-color: transparent;
+          }
+          .summary article:last-child span { color: rgba(255,255,255,.78); }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            overflow: hidden;
+            border-radius: 18px;
+          }
+          th {
+            padding: 14px;
+            color: #73788a;
+            background: #f3f5fa;
+            font-size: 11px;
+            text-align: right;
+            text-transform: uppercase;
+          }
+          th:first-child, td:first-child { text-align: left; }
+          td {
+            padding: 16px 14px;
+            border-bottom: 1px solid #e7eaf2;
+            font-size: 14px;
+            font-weight: 780;
+            text-align: right;
+            vertical-align: top;
+          }
+          td span {
+            display: block;
+            margin-top: 5px;
+            color: #73788a;
+            font-size: 12px;
+            font-weight: 650;
+          }
+          .formula {
+            margin-top: 26px;
+            padding: 18px;
+            border-radius: 18px;
+            color: #342a86;
+            background: #f1efff;
+            font-size: 14px;
+            font-weight: 760;
+          }
+          footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-top: 34px;
+            color: #73788a;
+            font-size: 12px;
+          }
+          .actions {
+            position: sticky;
+            top: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: -14px auto 20px;
+          }
+          button {
+            height: 42px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 999px;
+            color: #ffffff;
+            background: #5347ce;
+            font-weight: 850;
+            cursor: pointer;
+          }
+          @media print {
+            body { padding: 0; background: #ffffff; }
+            .page { max-width: none; min-height: auto; border-radius: 0; box-shadow: none; }
+            .actions { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="actions">
+          <button onclick="window.print()">Exporter / enregistrer en PDF</button>
+        </div>
+        <main class="page">
+          <header>
+            <div class="brand"><i class="mark"></i>Nova+</div>
+            <div>
+              <strong>${escapeHtml(invoiceNumber)}</strong><br />
+              <span>Généré le ${generatedAt}</span>
+            </div>
+          </header>
+          <h1>Facture sous-traitant HT par lot</h1>
+          <section class="meta">
+            <div class="box"><span>Chantier</span><strong>${escapeHtml(project.name)}</strong></div>
+            <div class="box"><span>Client</span><strong>${escapeHtml(project.client || "Client non renseigné")}</strong></div>
+            <div class="box"><span>Adresse</span><strong>${escapeHtml(project.address || "Adresse non renseignée")}</strong></div>
+            <div class="box"><span>Sous-traitant</span><strong>${escapeHtml(subcontractor.companyName)}${subcontractor.trade ? ` · ${escapeHtml(subcontractor.trade)}` : ""}</strong></div>
+          </section>
+          <section class="summary">
+            <article><span>Montant sous-traitant HT</span><strong>${money(invoiceProject.totalSubcontractor)}</strong></article>
+            <article><span>Objectif marge retenu</span><strong>${percentFormatter.format(targetMargin)}%</strong></article>
+            <article><span>Net à facturer HT</span><strong>${money(invoiceProject.totalNetHt)}</strong></article>
+          </section>
+          <table>
+            <thead>
+              <tr>
+                <th>Lot</th>
+                <th>Avancement</th>
+                <th>Montant ST HT</th>
+                <th>Marge objectif</th>
+                <th>Net HT</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="formula">
+            Calcul appliqué lot par lot : montant sous-traitant HT - objectif marge (${percentFormatter.format(targetMargin)}%) = net à facturer HT.
+          </div>
+          <footer>
+            <span>Document de préparation généré par Nova+.</span>
+            <span>Total marge objectif : ${money(invoiceProject.totalMarginDeduction)}</span>
+          </footer>
+        </main>
+        <script>setTimeout(() => window.print(), 450);</script>
+      </body>
+    </html>
+  `;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Le navigateur a bloqué l'ouverture de la facture. Autorisez les fenêtres pop-up pour Nova+.");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
 }
 
 function formatShortDate(value) {
@@ -2338,6 +2678,13 @@ function bindEvents() {
       });
       saveState();
       renderAll();
+    }
+
+    const exportSubcontractorInvoiceButton = event.target.closest("[data-export-subcontractor-invoice]");
+    if (exportSubcontractorInvoiceButton) {
+      const [subcontractorId, projectId] = exportSubcontractorInvoiceButton.dataset.exportSubcontractorInvoice.split(":");
+      exportSubcontractorInvoice(subcontractorId, projectId);
+      return;
     }
 
     const deleteProjectDocumentButton = event.target.closest("[data-delete-project-document]");
