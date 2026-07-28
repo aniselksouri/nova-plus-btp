@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nova+ - MVP BTP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation principale">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <h1>Nova+</h1>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <p class="nav-section">Général</p>
+          <button class="nav-item active" type="button" data-view="dashboard"><span class="nav-icon dashboard"></span>Tableau de bord</button>
+          <button class="nav-item" type="button" data-view="projects"><span class="nav-icon site"></span>Chantiers</button>
+          <button class="nav-item" type="button" data-view="pdf"><span class="nav-icon pdf"></span>Devis PDF</button>
+          <button class="nav-item" type="button" data-view="billing"><span class="nav-icon invoice"></span>Facturation</button>
+          <p class="nav-section">Pilotage</p>
+          <button class="nav-item" type="button" data-view="calendar"><span class="nav-icon calendar"></span>Calendrier</button>
+          <button class="nav-item" type="button" data-view="orders"><span class="nav-icon orders"></span>Suivi commande</button>
+          <button class="nav-item" type="button" data-view="documents"><span class="nav-icon documents"></span>Documents chantier</button>
+          <button class="nav-item" type="button" data-view="suppliers"><span class="nav-icon suppliers"></span>Fournisseurs</button>
+          <button class="nav-item" type="button" data-view="library"><span class="nav-icon lots"></span>Bibliothèque lots</button>
+          <button class="nav-item" type="button" data-view="subcontractors"><span class="nav-icon subcontractors"></span>Sous-traitants</button>
+          <button class="nav-item" type="button" data-view="settings"><span class="nav-icon settings"></span>Réglages marge</button>
+        </nav>
+
+        <section class="sidebar-panel">
+          <p class="panel-label">Objectif marge</p>
+          <div class="target-control">
+            <input id="targetMargin" type="range" min="10" max="45" value="28" />
+            <strong><span id="targetMarginLabel">28</span>%</strong>
+          </div>
+          <p class="hint">Le prix conseillé et les alertes se recalculent avec cet objectif.</p>
+        </section>
+      </aside>
+
+      <main class="workspace">
+        <div class="app-topbar">
+          <div class="search-box">
+            <span aria-hidden="true"></span>
+            <input id="globalSearch" type="search" placeholder="Rechercher chantier, facture, lot..." />
+            <kbd>⌘ F</kbd>
+          </div>
+          <div class="account-box">
+            <button type="button" aria-label="Notifications"></button>
+            <button type="button" aria-label="Ajouter"></button>
+            <div class="avatar">AD</div>
+            <div>
+              <strong>Direction travaux</strong>
+              <span>Pilotage BTP</span>
+            </div>
+          </div>
+        </div>
+
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="todayLabel">Aujourd'hui</p>
+            <h2 id="viewTitle">Pilotage marge, facturation et coûts réels</h2>
+          </div>
+          <div class="topbar-actions">
+            <label class="upload-button">
+              <input id="pdfInput" type="file" accept="application/pdf" />
+              Importer un devis PDF
+            </label>
+            <button id="exportButton" class="upload-button" type="button">Exporter bilan</button>
+            <button id="simulateImport" class="primary-button" type="button">Créer un exemple</button>
+          </div>
+        </header>
+
+        <section class="summary-grid app-view" data-view-panel="dashboard" aria-label="Indicateurs globaux">
+          <article class="metric">
+            <p>Prix de vente HT</p>
+            <strong id="totalSale">0 €</strong>
+            <span>Devis signé</span>
+            <small id="vatEstimate">TVA estimée : 0 €</small>
+          </article>
+          <article class="metric">
+            <p>Coût réel actuel</p>
+            <strong id="totalRealCost">0 €</strong>
+            <span id="realCostDelta">Écart prévu : 0 €</span>
+          </article>
+          <article class="metric">
+            <p>Marge réelle</p>
+            <strong id="realMargin">0%</strong>
+            <span id="marginGap">Objectif : 28%</span>
+          </article>
+          <article class="metric alert" id="globalStatusCard">
+            <p>Statut chantier</p>
+            <strong id="globalStatus">Analyse</strong>
+            <span id="globalAdvice">Importez un devis pour démarrer.</span>
+          </article>
+        </section>
+
+        <section class="work-grid app-view" data-view-panel="dashboard">
+          <article class="panel project-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Chantier actif</p>
+                <h3>Maison Delcourt - Extension et rénovation</h3>
+              </div>
+              <span class="status-pill warning">En cours</span>
+            </div>
+
+            <div class="project-meta">
+              <div>
+                <span>Client</span>
+                <strong>Famille Delcourt</strong>
+              </div>
+              <div>
+                <span>Adresse</span>
+                <strong>Marcq-en-Baroeul</strong>
+              </div>
+              <div>
+                <span>Début</span>
+                <strong>02/07/2026</strong>
+              </div>
+              <div>
+                <span>Fin prévue</span>
+                <strong>18/09/2026</strong>
+              </div>
+            </div>
+
+            <div class="timeline" id="invoiceTimeline"></div>
+          </article>
+
+          <article class="panel recommendations">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Conseil rentabilité</p>
+                <h3>Ce que l'app doit dire au patron</h3>
+              </div>
+            </div>
+            <div id="recommendationList" class="recommendation-list"></div>
+          </article>
+        </section>
+
+        <section class="panel table-panel app-view" data-view-panel="dashboard">
+          <div class="panel-header table-header">
+            <div>
+              <p class="eyebrow">Lots détectés depuis le devis</p>
+              <h3>Prévu, réel, marge et prix conseillé</h3>
+            </div>
+            <div class="legend">
+              <span id="projectProgressPill" class="progress-pill">Avancement 0%</span>
+              <span><i class="dot green"></i> rentable</span>
+              <span><i class="dot yellow"></i> limite</span>
+              <span><i class="dot red"></i> à corriger</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lot</th>
+                  <th>Avancement</th>
+                  <th>Vente HT</th>
+                  <th>Matériaux</th>
+                  <th>Main d'oeuvre</th>
+                  <th>Commercial %</th>
+                  <th>Autres frais</th>
+                  <th>Coût prévu</th>
+                  <th>Coût réel</th>
+                  <th>Marge réelle</th>
+                  <th>Bénéfice réel</th>
+                  <th title="Prix de vente cible pour atteindre la marge choisie avec le coût réel calculé.">Prix cible</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody id="lotsTable"></tbody>
+            </table>
+          </div>
+          <form id="lotForm" class="inline-form">
+            <label>
+              <span>Lot</span>
+              <input name="name" type="text" placeholder="Ex : Couverture" required />
+            </label>
+            <label>
+              <span>Description</span>
+              <input name="source" type="text" placeholder="Tuiles, écran sous-toiture..." required />
+            </label>
+            <label>
+              <span>Vente HT</span>
+              <input name="sale" type="number" min="0" step="50" required />
+            </label>
+            <label>
+              <span>Avancement %</span>
+              <input name="progress" type="number" min="0" max="100" step="5" value="0" />
+            </label>
+            <label>
+              <span>Matériaux</span>
+              <input name="material" type="number" min="0" step="50" value="0" />
+            </label>
+            <label>
+              <span>Main d'oeuvre</span>
+              <input name="labor" type="number" min="0" step="50" value="0" />
+            </label>
+            <label>
+              <span>Type MO</span>
+              <select name="laborType">
+                <option value="employee">Salarié</option>
+                <option value="subcontractor">Sous-traitant</option>
+              </select>
+            </label>
+            <label>
+              <span>Sous-traitant</span>
+              <select name="subcontractorId" id="lotSubcontractorSelect"></select>
+            </label>
+            <label>
+              <span>Commercial %</span>
+              <input name="commercialRate" type="number" min="0" max="100" step="0.5" value="0" />
+            </label>
+            <label>
+              <span>Coût prévu</span>
+              <input name="planned" type="number" min="0" step="50" value="0" />
+            </label>
+            <button class="primary-button compact" type="submit">Ajouter lot</button>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="projects">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Portefeuille chantiers</p>
+              <h3>Suivi rentabilité par dossier</h3>
+            </div>
+            <button id="newProjectButton" class="primary-button compact" type="button">Nouveau chantier</button>
+          </div>
+          <div id="projectsGrid" class="cards-grid"></div>
+          <form id="projectForm" class="edit-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Fiche chantier</p>
+                <h3>Modifier le chantier actif</h3>
+              </div>
+              <span class="soft-status">Sauvegarde locale</span>
+            </div>
+            <div class="settings-grid">
+              <label class="setting-field">
+                <span>Nom chantier</span>
+                <input name="name" type="text" />
+              </label>
+              <label class="setting-field">
+                <span>Client</span>
+                <input name="client" type="text" />
+              </label>
+              <label class="setting-field">
+                <span>Adresse</span>
+                <input name="address" type="text" />
+              </label>
+              <label class="setting-field">
+                <span>Début</span>
+                <input name="startDate" type="date" />
+              </label>
+              <label class="setting-field">
+                <span>Fin prévue</span>
+                <input name="endDate" type="date" />
+              </label>
+              <label class="setting-field">
+                <span>Statut</span>
+                <select name="status">
+                  <option>Devis</option>
+                  <option>Devis importé</option>
+                  <option>Devis signé</option>
+                  <option>En cours</option>
+                  <option>Terminé</option>
+                  <option>Facturé</option>
+                </select>
+              </label>
+            </div>
+            <div class="payment-schedule-panel">
+              <div class="payment-schedule-head">
+                <div>
+                  <p class="eyebrow">Paiements chantier</p>
+                  <h4>Dates de lancement des factures</h4>
+                </div>
+                <button class="upload-button compact" type="button" data-add-project-invoice>Ajouter une date</button>
+              </div>
+              <div id="projectPaymentSchedule" class="payment-schedule-list"></div>
+            </div>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="pdf">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Analyse devis</p>
+              <h3>Importer, détecter et affecter les lignes par lot</h3>
+            </div>
+            <span id="pdfStatus" class="soft-status">Aucun fichier en attente</span>
+          </div>
+          <div class="import-layout">
+            <div class="drop-zone">
+              <strong>Déposer un devis PDF</strong>
+              <p>Nova+ lit les PDF texte, extrait les lignes avec montants, puis vous laisse vérifier le total et corriger les lots avant création du chantier.</p>
+              <label class="upload-button">
+                <input id="pdfInputSecondary" type="file" accept="application/pdf" />
+                Choisir un PDF
+              </label>
+            </div>
+            <div>
+              <div id="importReview" class="import-review"></div>
+              <div class="extracted-lines" id="extractedLines"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="billing">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Facturation</p>
+              <h3>Échéances, situations et encaissements</h3>
+            </div>
+            <span id="billingSummary" class="soft-status">0 € à facturer</span>
+          </div>
+          <div id="billingList" class="billing-list"></div>
+          <form id="invoiceForm" class="inline-form">
+            <label>
+              <span>Libellé</span>
+              <input name="label" type="text" placeholder="Situation travaux" required />
+            </label>
+            <label>
+              <span>Action</span>
+              <input name="action" type="text" placeholder="Facture 20% à envoyer" required />
+            </label>
+            <label>
+              <span>Pourcentage</span>
+              <input name="percent" type="number" min="1" max="100" step="1" required />
+            </label>
+            <label>
+              <span>Date</span>
+              <input name="date" type="date" required />
+            </label>
+            <button class="primary-button compact" type="submit">Ajouter échéance</button>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="orders">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Suivi commande</p>
+              <h3>Import fournisseur, catégories et suivi par ligne</h3>
+            </div>
+            <div class="orders-actions">
+              <span id="orderStatus" class="soft-status">Aucun PDF commande importé</span>
+              <label class="upload-button compact">
+                <input id="orderPdfInput" type="file" accept="application/pdf" />
+                Importer PDF commande
+              </label>
+              <button id="exportOrdersButton" class="upload-button compact" type="button">Exporter commandes</button>
+            </div>
+          </div>
+          <div id="orderProjectContext" class="order-project-context"></div>
+          <div id="ordersDashboard" class="orders-dashboard"></div>
+          <div id="ordersList" class="orders-list"></div>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="calendar">
+          <div class="panel-header calendar-header">
+            <div>
+              <p class="eyebrow">Calendrier</p>
+              <h3>Tous les événements chantier au même endroit</h3>
+            </div>
+            <div class="calendar-filters">
+              <label>
+                <span>Chantier</span>
+                <select id="calendarProjectFilter"></select>
+              </label>
+              <label>
+                <span>Type</span>
+                <select id="calendarTypeFilter">
+                  <option value="all">Tous les événements</option>
+                  <option value="invoice">Paiements et factures</option>
+                  <option value="project">Début et fin chantier</option>
+                  <option value="order">Commandes et retards</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="calendarStats" class="calendar-stats"></div>
+          <div id="calendarLegend" class="calendar-legend"></div>
+          <div class="calendar-layout">
+            <div id="calendarGrid" class="calendar-grid"></div>
+            <div id="calendarList" class="calendar-list"></div>
+          </div>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="documents">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Documents chantier</p>
+              <h3>Bibliothèque documentaire du chantier actif</h3>
+            </div>
+            <span id="projectDocumentsStatus" class="soft-status">0 document</span>
+          </div>
+          <div id="projectDocumentsContext" class="order-project-context"></div>
+          <form id="projectDocumentForm" class="edit-panel document-form">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Ajout document</p>
+                <h3>Importer et classer un ou plusieurs fichiers</h3>
+              </div>
+              <span class="soft-status">Stocké dans ce navigateur</span>
+            </div>
+            <div class="settings-grid">
+              <label class="setting-field">
+                <span>Nom du document</span>
+                <input name="label" type="text" placeholder="Ex : Plan plomberie R+1" required />
+              </label>
+              <label class="setting-field">
+                <span>Catégorie</span>
+                <select name="category">
+                  <option>Administratif</option>
+                  <option>Plans</option>
+                  <option>Photos chantier</option>
+                  <option>Factures</option>
+                  <option>Assurances</option>
+                  <option>PV / Réception</option>
+                  <option>Autre</option>
+                </select>
+              </label>
+              <label class="setting-field">
+                <span>Fichiers</span>
+                <input id="projectDocumentFilesInput" name="files" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple />
+              </label>
+            </div>
+            <div class="pending-files-panel">
+              <div class="pending-files-head">
+                <div>
+                  <span>Fichiers en attente</span>
+                  <strong id="pendingProjectDocumentsSummary">Aucun fichier sélectionné</strong>
+                </div>
+                <button class="upload-button compact danger-button" type="button" data-clear-pending-project-documents>Vider</button>
+              </div>
+              <div id="pendingProjectDocumentsList" class="pending-files-list"></div>
+            </div>
+            <button class="primary-button compact" type="submit">Ajouter les documents</button>
+          </form>
+          <div id="projectDocumentsList" class="documents-board"></div>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="library">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Bibliothèque lots</p>
+              <h3>Catégories et mots-clés de tri automatique</h3>
+            </div>
+          </div>
+          <div id="libraryGrid" class="cards-grid compact-grid"></div>
+          <form id="libraryForm" class="inline-form">
+            <label>
+              <span>Nouveau lot</span>
+              <input name="name" type="text" placeholder="Ex : Couverture" required />
+            </label>
+            <label class="wide-field">
+              <span>Mots-clés séparés par virgules</span>
+              <input name="keywords" type="text" placeholder="tuile, zinc, toiture, écran sous-toiture" required />
+            </label>
+            <button class="primary-button compact" type="submit">Ajouter à la bibliothèque</button>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="suppliers">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Fournisseurs</p>
+              <h3>Contacts achat et référents fournisseurs</h3>
+            </div>
+            <span id="supplierSummary" class="soft-status">0 fiche</span>
+          </div>
+          <div id="suppliersGrid" class="cards-grid compact-grid"></div>
+          <form id="supplierForm" class="edit-panel document-form">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Nouvelle fiche</p>
+                <h3>Ajouter un fournisseur</h3>
+              </div>
+              <span class="soft-status">Carnet d'achat local</span>
+            </div>
+            <div class="settings-grid">
+              <label class="setting-field">
+                <span>Nom fournisseur</span>
+                <input name="companyName" type="text" placeholder="Ex : CEDEO, Point.P, Rexel" required />
+              </label>
+              <label class="setting-field">
+                <span>Référent</span>
+                <input name="referent" type="text" placeholder="Nom du contact" required />
+              </label>
+              <label class="setting-field">
+                <span>Téléphone</span>
+                <input name="phone" type="tel" placeholder="06 00 00 00 00" required />
+              </label>
+              <label class="setting-field">
+                <span>Email</span>
+                <input name="email" type="email" placeholder="contact@fournisseur.fr" required />
+              </label>
+            </div>
+            <button class="primary-button compact" type="submit">Ajouter le fournisseur</button>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="subcontractors">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Sous-traitants</p>
+              <h3>Fiches sociétés et documents obligatoires</h3>
+            </div>
+            <span id="subcontractorSummary" class="soft-status">0 fiche</span>
+          </div>
+          <div id="subcontractorsGrid" class="cards-grid compact-grid"></div>
+          <form id="subcontractorForm" class="edit-panel document-form">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Nouvelle fiche</p>
+                <h3>Ajouter un sous-traitant</h3>
+              </div>
+              <span class="soft-status">Documents stockés localement</span>
+            </div>
+            <div class="settings-grid">
+              <label class="setting-field">
+                <span>Nom de la société</span>
+                <input name="companyName" type="text" placeholder="Ex : Nord Elec Services" required />
+              </label>
+              <label class="setting-field">
+                <span>Corps de métier</span>
+                <input name="trade" type="text" placeholder="Ex : Plomberie, placo, électricité" required />
+              </label>
+              <label class="setting-field">
+                <span>Capacité chantier max</span>
+                <input name="maxProjects" type="number" min="1" step="1" value="1" required />
+              </label>
+              <label class="setting-field">
+                <span>KBIS</span>
+                <input name="kbis" type="file" accept=".pdf,image/*" />
+              </label>
+              <label class="setting-field">
+                <span>Assurance</span>
+                <input name="insurance" type="file" accept=".pdf,image/*" />
+              </label>
+              <label class="setting-field">
+                <span>Carte d'identité</span>
+                <input name="idCard" type="file" accept=".pdf,image/*" />
+              </label>
+            </div>
+            <button class="primary-button compact" type="submit">Ajouter le sous-traitant</button>
+          </form>
+        </section>
+
+        <section class="app-view view-panel hidden" data-view-panel="settings">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Réglages marge</p>
+              <h3>Barèmes vert, jaune, rouge et seuils d'alerte</h3>
+            </div>
+            <button id="resetDataButton" class="upload-button compact" type="button">Réinitialiser les données</button>
+          </div>
+          <div class="settings-grid">
+            <label class="setting-field">
+              <span>Marge cible</span>
+              <input id="targetMarginSetting" type="number" min="10" max="45" step="1" value="28" />
+            </label>
+            <label class="setting-field">
+              <span>Rouge si marge sous</span>
+              <input id="redThreshold" type="number" min="0" max="30" step="1" value="12" />
+            </label>
+            <label class="setting-field">
+              <span>Alerte facture avant échéance</span>
+              <input id="invoiceWarningDays" type="number" min="1" max="15" step="1" value="5" />
+            </label>
+            <label class="setting-field">
+              <span>Taux TVA</span>
+              <input id="vatRate" type="number" min="0" max="30" step="0.5" value="20" />
+            </label>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="supplierNameOptions"></datalist>
+    <dialog id="documentPreviewModal" class="document-preview-modal">
+      <div class="document-preview-shell">
+        <div class="document-preview-head">
+          <div>
+            <span>Aperçu document</span>
+            <strong id="documentPreviewTitle">Fichier</strong>
+          </div>
+          <button class="upload-button compact" type="button" data-close-document-preview>Fermer</button>
+        </div>
+        <div id="documentPreviewBody" class="document-preview-body"></div>
+      </div>
+    </dialog>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

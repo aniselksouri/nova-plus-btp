@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guide d'utilisation Nova+</title>
+    <style>
+      :root {
+        --ink: #101116;
+        --muted: #667080;
+        --line: #dce2ea;
+        --bg: #dfe5eb;
+        --paper: #eef3f7;
+        --accent: #5347ce;
+        --accent-2: #887cfd;
+        --blue: #4896fb;
+        --cyan: #1fc8c7;
+        --green: #1fc8a0;
+        --red: #dc5a70;
+        --amber: #df9b22;
+        --wash: #f1f5ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .page {
+        position: relative;
+        overflow: hidden;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        padding: 17mm 18mm 18mm;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 38%),
+          var(--paper);
+        page-break-after: always;
+      }
+
+      .page::before {
+        content: "";
+        position: absolute;
+        inset: auto 0 0;
+        height: 16mm;
+        border: 0;
+        border-radius: 0;
+        background: rgba(255, 255, 255, 0.62);
+        pointer-events: none;
+      }
+
+      .page::after {
+        content: "";
+        position: absolute;
+        right: 18mm;
+        bottom: 7mm;
+        width: 46mm;
+        height: 7mm;
+        border-radius: 0;
+        background:
+          linear-gradient(90deg, var(--accent) 0 25%, var(--accent-2) 25% 50%, var(--blue) 50% 75%, var(--cyan) 75% 100%);
+        pointer-events: none;
+      }
+
+      .page > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .cover {
+        display: grid;
+        align-content: space-between;
+        min-height: 297mm;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 44%),
+          var(--paper);
+      }
+
+      .cover::before {
+        inset: auto 0 0;
+      }
+
+      .cover::after {
+        width: 64mm;
+        height: 8mm;
+        opacity: 1;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .mark {
+        position: relative;
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        background: linear-gradient(135deg, var(--accent), #887cfd);
+        box-shadow: 0 14px 26px rgba(83, 71, 206, 0.18);
+      }
+
+      .mark::before,
+      .mark::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        width: 20px;
+        height: 8px;
+        border-radius: 999px;
+        background: #fff;
+      }
+
+      .mark::before {
+        top: 10px;
+        transform: rotate(-24deg);
+      }
+
+      .mark::after {
+        bottom: 10px;
+        transform: rotate(24deg);
+      }
+
+      .brand strong {
+        color: #342a86;
+        font-size: 25px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        margin: 0 0 8px;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #655f92;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 600px;
+        margin-bottom: 16px;
+        font-size: 50px;
+        line-height: 0.98;
+        letter-spacing: -0.02em;
+      }
+
+      h2 {
+        margin-bottom: 12px;
+        font-size: 30px;
+        line-height: 1.05;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 17px;
+      }
+
+      p {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.52;
+      }
+
+      .cover-copy {
+        max-width: 620px;
+      }
+
+      .cover-copy p {
+        max-width: 540px;
+        font-size: 16px;
+      }
+
+      .cover-meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .meta-card,
+      .card,
+      .step,
+      .callout {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: 0 14px 28px rgba(62, 72, 84, 0.08);
+      }
+
+      .meta-card {
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .meta-card span {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .meta-card strong {
+        font-size: 18px;
+      }
+
+      .topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin: 0 0 18px;
+        padding: 0 0 12px;
+        border: 0;
+        border-bottom: 1px solid rgba(120, 130, 145, 0.22);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .topline .brand strong {
+        font-size: 18px;
+      }
+
+      .topline .mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+      }
+
+      .topline .mark::before,
+      .topline .mark::after {
+        left: 7px;
+        width: 15px;
+        height: 6px;
+      }
+
+      .topline .mark::before {
+        top: 7px;
+      }
+
+      .topline .mark::after {
+        bottom: 7px;
+      }
+
+      .page-number {
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .card {
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.74);
+      }
+
+      .card p:last-child,
+      .step p:last-child,
+      .callout p:last-child {
+        margin-bottom: 0;
+      }
+
+      .steps {
+        display: grid;
+        gap: 10px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        padding: 15px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.92), rgba(245, 248, 255, 0.9));
+      }
+
+      .num {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(136, 124, 253, 0.16);
+        color: var(--accent);
+        font-weight: 900;
+      }
+
+      .shot {
+        display: block;
+        width: 100%;
+        margin: 14px 0;
+        border: 1px solid rgba(83, 71, 206, 0.14);
+        border-radius: 8px;
+        box-shadow: 0 18px 38px rgba(62, 72, 84, 0.12);
+      }
+
+      .shot.small {
+        max-height: 118mm;
+        object-fit: contain;
+        background: #f6f8fb;
+      }
+
+      .callout {
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.66);
+      }
+
+      .callout.green {
+        border-color: rgba(31, 200, 160, 0.3);
+        background: rgba(238, 255, 250, 0.72);
+      }
+
+      .callout.red {
+        border-color: rgba(220, 90, 112, 0.28);
+        background: rgba(255, 244, 246, 0.72);
+      }
+
+      .formula {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background:
+          linear-gradient(90deg, #111827, #26205f);
+        color: #fff;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 12px 24px rgba(62, 72, 84, 0.06);
+      }
+
+      th,
+      td {
+        padding: 9px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+
+      th {
+        background: rgba(255, 255, 255, 0.62);
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .check {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 8px;
+        align-items: start;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .check::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        margin-top: 3px;
+        border-radius: 50%;
+        background: var(--cyan);
+      }
+
+      .button-list {
+        display: grid;
+        gap: 9px;
+      }
+
+      .button-doc {
+        display: grid;
+        grid-template-columns: 175px 1fr;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 10px 20px rgba(62, 72, 84, 0.055);
+      }
+
+      .button-doc strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .button-doc p {
+        margin: 0;
+        font-size: 12px;
+      }
+
+      .tag {
+        display: inline-flex;
+        width: fit-content;
+        margin-bottom: 6px;
+        padding: 5px 8px;
+        border-radius: 4px;
+        background: rgba(136, 124, 253, 0.16);
+        color: var(--accent);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .mini {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 10px 20px rgba(62, 72, 84, 0.055);
+      }
+
+      .mini strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
+
+      .mini span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .warning-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .warning-item {
+        padding: 12px;
+        border: 1px solid rgba(220, 90, 112, 0.24);
+        border-radius: 14px;
+        background: #fff7f8;
+      }
+
+      .warning-item strong {
+        display: block;
+        margin-bottom: 4px;
+        color: #a83d50;
+      }
+
+      .warning-item span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .page {
+          margin: 0;
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page cover">
+      <div class="brand">
+        <div class="mark"></div>
+        <strong>Nova+</strong>
+      </div>
+      <div class="cover-copy">
+        <p class="eyebrow">Guide d'utilisation</p>
+        <h1>Savoir en un clic si un chantier est vraiment rentable</h1>
+        <p>
+          Le guide complet pour transformer un devis BTP en tableau de rentabilité par lot :
+          coûts réels, marge, bénéfice, prix cible et rappels de facturation.
+        </p>
+      </div>
+      <div class="cover-meta">
+        <div class="meta-card">
+          <span>Version</span>
+          <strong>Version 1 bêta</strong>
+        </div>
+        <div class="meta-card">
+          <span>Usage</span>
+          <strong>Ordinateur</strong>
+        </div>
+        <div class="meta-card">
+          <span>Public</span>
+          <strong>Dirigeant BTP</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">01 / Présentation</span>
+      </div>
+      <p class="eyebrow">Objectif</p>
+      <h2>À quoi sert Nova+ ?</h2>
+      <p>
+        Nova+ vous aide à savoir si votre chantier est rentable, lot par lot. Vous importez un devis PDF,
+        vous vérifiez les lignes détectées, vous validez la création du chantier, puis vous renseignez vos
+        coûts réels au fil de l'exécution.
+      </p>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Ce que Nova+ lit pour vous</h3>
+          <p>Les chapitres et montants de votre devis PDF texte, avec classement automatique par lot métier.</p>
+        </div>
+        <div class="card">
+          <h3>Ce que Nova+ calcule</h3>
+          <p>Votre coût réel, votre marge réelle, votre bénéfice réel, votre prix cible et vos alertes de rentabilité.</p>
+        </div>
+        <div class="card">
+          <h3>Ce que vous saisissez</h3>
+          <p>Matériaux, main-d'œuvre, coût commercial, autres frais et coût prévu pour chaque lot.</p>
+        </div>
+        <div class="card">
+          <h3>Ce que vous contrôlez</h3>
+          <p>Total importé, écart, lignes détectées, affectation des lots et échéances de facturation.</p>
+        </div>
+      </div>
+      <div class="callout green" style="margin-top: 14px;">
+        <h3>Promesse principale</h3>
+        <p>Vous savez rapidement quels lots gagnent ou perdent de l'argent, avant la fin du chantier.</p>
+      </div>
+      <div class="mini-grid" style="margin-top: 16px;">
+        <div class="mini">
+          <strong>Décider quoi facturer</strong>
+          <span>Les rappels mettent en avant les acomptes, situations et soldes à envoyer.</span>
+        </div>
+        <div class="mini">
+          <strong>Corriger les dérives</strong>
+          <span>Les lots en danger ressortent vite grâce aux coûts réels et au code couleur.</span>
+        </div>
+        <div class="mini">
+          <strong>Améliorer les prochains devis</strong>
+          <span>Le prix cible indique si un lot aurait pu être vendu plus cher.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">02 / Parcours rapide</span>
+      </div>
+      <p class="eyebrow">Workflow</p>
+      <h2>Les 6 étapes d'utilisation</h2>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><h3>Importer le devis PDF</h3><p>Cliquer sur “Importer un devis PDF”, puis sélectionner le fichier du chantier.</p></div></div>
+        <div class="step"><div class="num">2</div><div><h3>Contrôler l'analyse</h3><p>Vérifier le nombre de lignes, le total détecté, le total importé et l'écart.</p></div></div>
+        <div class="step"><div class="num">3</div><div><h3>Corriger les lots si besoin</h3><p>Chaque ligne détectée peut être réaffectée vers un autre lot avant validation.</p></div></div>
+        <div class="step"><div class="num">4</div><div><h3>Créer le chantier</h3><p>Cliquer sur “Valider et créer le chantier” pour générer le dossier chantier.</p></div></div>
+        <div class="step"><div class="num">5</div><div><h3>Renseigner les coûts</h3><p>Saisir matériaux, main-d'œuvre, commercial, autres frais et coût prévu par lot.</p></div></div>
+        <div class="step"><div class="num">6</div><div><h3>Lire la rentabilité</h3><p>Nova+ calcule votre coût réel, votre marge réelle, votre bénéfice réel, votre prix cible et le statut du lot.</p></div></div>
+      </div>
+      <div class="callout" style="margin-top: 16px;">
+        <h3>Avant de valider un import</h3>
+        <p>Contrôler le total du devis, vérifier les lots principaux et corriger les lignes mal affectées. Une fois validé, le chantier devient pilotable dans le tableau de bord.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">03 / Import PDF</span>
+      </div>
+      <p class="eyebrow">Étape 1</p>
+      <h2>Importer et vérifier un devis</h2>
+      <p>
+        L'écran d'import affiche un contrôle avant création du chantier. Si le total détecté correspond au
+        total importé, l'écart est affiché comme OK.
+      </p>
+      <img class="shot" src="./guide-import-review.png" alt="Écran de validation import PDF Nova+" />
+      <div class="callout">
+        <h3>Point de contrôle essentiel</h3>
+        <p>Ne valider le chantier que si le total détecté et le total importé sont cohérents avec le devis.</p>
+      </div>
+      <div class="mini-grid" style="margin-top: 16px;">
+        <div class="mini">
+          <strong>1. Vérifier le fichier</strong>
+          <span>Le nom affiché doit correspondre au devis que l'on veut importer.</span>
+        </div>
+        <div class="mini">
+          <strong>2. Contrôler l'écart</strong>
+          <span>Le total détecté et le total importé doivent être identiques ou très proches.</span>
+        </div>
+        <div class="mini">
+          <strong>3. Valider seulement après contrôle</strong>
+          <span>Le bouton de validation crée réellement le chantier dans Nova+.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">04 / Correction</span>
+      </div>
+      <p class="eyebrow">Étape 2</p>
+      <h2>Corriger l'affectation des lots</h2>
+      <p>
+        Avant validation, chaque ligne du devis possède un lot proposé. Si une ligne n'est pas dans le bon lot,
+        vous sélectionnez le bon lot dans le menu déroulant.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Situation</th><th>Action</th><th>Résultat</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Une ligne est mal classée</td><td>Changer le lot dans le menu</td><td>Le chantier sera créé avec la bonne affectation</td></tr>
+          <tr><td>Le total est incorrect</td><td>Ne pas valider</td><td>Contrôler le PDF ou demander un export texte</td></tr>
+          <tr><td>Le PDF est scanné</td><td>OCR nécessaire</td><td>Le texte ne peut pas être extrait directement</td></tr>
+        </tbody>
+      </table>
+      <div class="callout red" style="margin-top: 14px;">
+        <h3>Limite actuelle</h3>
+        <p>Nova+ lit les PDF texte. Si votre devis est un scan ou une image, il faudra un module OCR dans une version production.</p>
+      </div>
+      <div class="mini-grid" style="margin-top: 16px;">
+        <div class="mini">
+          <strong>Vérifier les gros montants</strong>
+          <span>Les lignes les plus chères doivent être dans le bon lot avant création du chantier.</span>
+        </div>
+        <div class="mini">
+          <strong>Regrouper par métier</strong>
+          <span>Une ligne peinture va dans Peinture, une ligne tableau ou prise dans Électricité.</span>
+        </div>
+        <div class="mini">
+          <strong>Ne pas forcer si doute</strong>
+          <span>En cas de PDF incohérent, mieux vaut annuler et repartir d'un export propre.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">05 / Tableau chantier</span>
+      </div>
+      <p class="eyebrow">Étape 3</p>
+      <h2>Lire et compléter le tableau par lot</h2>
+      <p>
+        Après validation, le chantier contient les lots détectés. Chaque lot affiche son prix de vente HT
+        et les champs à renseigner pour suivre le coût réel.
+      </p>
+      <img class="shot" src="./guide-dashboard.png" alt="Dashboard chantier Nova+" />
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">06 / Colonnes</span>
+      </div>
+      <p class="eyebrow">Comprendre les indicateurs</p>
+      <h2>Définition des colonnes principales</h2>
+      <div class="callout green" style="margin-top: 12px;">
+        <h3>Lecture simple</h3>
+        <p>La ligne d'un lot se lit de gauche à droite : prix vendu, coûts à renseigner, calculs automatiques, puis décision.</p>
+      </div>
+      <div class="mini-grid" style="margin-top: 16px;">
+        <div class="mini">
+          <span class="tag">Base devis</span>
+          <strong>Vente HT</strong>
+          <span>Montant vendu dans le devis pour le lot. C'est le chiffre d'affaires de référence.</span>
+        </div>
+        <div class="mini">
+          <span class="tag">À saisir</span>
+          <strong>Matériaux</strong>
+          <span>Fournitures, consommables, achats et matériaux réellement engagés.</span>
+        </div>
+        <div class="mini">
+          <span class="tag">À saisir</span>
+          <strong>Main-d'œuvre</strong>
+          <span>Coût des heures internes, pose, production, intérim ou sous-traitance de pose.</span>
+        </div>
+        <div class="mini">
+          <span class="tag">À saisir</span>
+          <strong>Commercial</strong>
+          <span>Commission, apporteur d'affaires, temps de vente ou coût commercial affecté au chantier.</span>
+        </div>
+        <div class="mini">
+          <span class="tag">À saisir</span>
+          <strong>Autres frais</strong>
+          <span>Transport, location, carburant, décharge, imprévus et frais annexes.</span>
+        </div>
+        <div class="mini">
+          <span class="tag">Budget</span>
+          <strong>Coût prévu</strong>
+          <span>Budget de coût anticipé. Il permet de comparer le prévisionnel avec le réel.</span>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 16px;">
+        <div class="card">
+          <h3>Calculé automatiquement</h3>
+          <p><strong>Coût réel</strong> = matériaux + main-d'œuvre + commercial + autres frais.</p>
+          <p><strong>Bénéfice réel</strong> = vente HT - coût réel.</p>
+        </div>
+        <div class="card">
+          <h3>Aide à la décision</h3>
+          <p><strong>Marge réelle</strong> montre le pourcentage gagné.</p>
+          <p><strong>Prix cible</strong> indique le prix nécessaire pour atteindre l'objectif de marge.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">07 / Calculs</span>
+      </div>
+      <p class="eyebrow">Formules</p>
+      <h2>Comment votre rentabilité est calculée</h2>
+      <div class="grid-2">
+        <div class="card">
+          <span class="tag">Étape 1</span>
+          <h3>Calculer le coût réel</h3>
+          <p>Nova+ additionne les dépenses saisies : matériaux, main-d'œuvre, commercial et autres frais.</p>
+          <div class="formula" style="margin-top: 10px;">Coût réel = M + MO + C + AF</div>
+        </div>
+        <div class="card">
+          <span class="tag">Étape 2</span>
+          <h3>Mesurer le bénéfice</h3>
+          <p>Le bénéfice réel montre le montant vraiment gagné sur le lot après dépenses.</p>
+          <div class="formula" style="margin-top: 10px;">Bénéfice = vente HT - coût réel</div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top: 14px;">
+        <div class="card">
+          <span class="tag">Étape 3</span>
+          <h3>Lire la marge réelle</h3>
+          <p>La marge réelle transforme le bénéfice en pourcentage pour comparer les lots entre eux.</p>
+          <div class="formula" style="margin-top: 10px;">Marge = bénéfice / vente HT x 100</div>
+        </div>
+        <div class="card">
+          <span class="tag">Étape 4</span>
+          <h3>Comparer au prix cible</h3>
+          <p>Le prix cible dit combien il aurait fallu vendre pour atteindre l'objectif de marge.</p>
+          <div class="formula" style="margin-top: 10px;">Prix cible = coût réel / (1 - marge cible)</div>
+        </div>
+      </div>
+      <div class="callout green" style="margin-top: 16px;">
+        <h3>Exemple complet</h3>
+        <p>Un lot vendu 15 000 € avec 10 000 € de coût réel génère 5 000 € de bénéfice, soit 33,3% de marge. Avec une marge cible à 28%, le prix cible est 13 889 € : le lot est donc vendu au-dessus de l'objectif.</p>
+      </div>
+      <div class="mini-grid" style="margin-top: 16px;">
+        <div class="mini"><strong>Vert</strong><span>La marge réelle est au-dessus de l'objectif.</span></div>
+        <div class="mini"><strong>Jaune</strong><span>La marge est proche du seuil et doit être surveillée.</span></div>
+        <div class="mini"><strong>Rouge</strong><span>Le lot est trop bas ou les coûts réels dérapent.</span></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">08 / Détail des lots</span>
+      </div>
+      <p class="eyebrow">Contrôle</p>
+      <h2>Voir les lignes du devis derrière un lot</h2>
+      <p>
+        Dans le tableau chantier, cliquer sur “ligne(s) du devis” sous un lot pour afficher les éléments
+        qui composent ce lot. Une ligne peut être réaffectée vers un autre lot si besoin.
+      </p>
+      <div class="callout green">
+        <h3>Pourquoi c'est important</h3>
+        <p>Vous pouvez vérifier que Nova+ a bien compris votre devis et corriger immédiatement une mauvaise affectation.</p>
+      </div>
+      <div class="checklist">
+        <div class="check">Ouvrir le détail du lot.</div>
+        <div class="check">Contrôler les montants et libellés.</div>
+        <div class="check">Changer le lot d'une ligne si nécessaire.</div>
+        <div class="check">Les totaux se recalculent après réaffectation.</div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">09 / Facturation</span>
+      </div>
+      <p class="eyebrow">Suivi administratif</p>
+      <h2>Utiliser les alertes de facturation</h2>
+      <p>
+        Nova+ crée des échéances de base pour le chantier. Vous pouvez ajouter vos propres échéances :
+        acompte, situation, solde, retenue ou facture complémentaire.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Couleur</th><th>Signification</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Vert</td><td>Échéance à venir ou facture validée.</td></tr>
+          <tr><td>Jaune</td><td>Échéance proche selon le délai d'alerte choisi.</td></tr>
+          <tr><td>Rouge</td><td>Facture à envoyer aujourd'hui ou en retard.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout" style="margin-top: 14px;">
+        <h3>Conseil d'usage</h3>
+        <p>Ouvrir Nova+ chaque matin pour voir les factures à envoyer et les lots qui dérapent.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">10 / Livraison</span>
+      </div>
+      <p class="eyebrow">Première utilisation</p>
+      <h2>Checklist de prise en main</h2>
+      <div class="checklist">
+        <div class="check">Ouvrez Nova+ sur ordinateur, idéalement en plein écran.</div>
+        <div class="check">Importez un devis PDF texte depuis votre ordinateur.</div>
+        <div class="check">Vérifiez le total détecté, le total importé et l'écart OK.</div>
+        <div class="check">Corrigez les affectations de lots si une ligne n'est pas au bon endroit.</div>
+        <div class="check">Validez l'import pour créer votre chantier.</div>
+        <div class="check">Renseignez quelques coûts pour afficher marge, bénéfice et prix cible.</div>
+        <div class="check">Ouvrez les détails des lignes derrière un lot pour contrôler l'import.</div>
+        <div class="check">Exportez le bilan CSV si vous voulez l'ouvrir dans Excel.</div>
+      </div>
+      <div class="callout green" style="margin-top: 16px;">
+        <h3>Objectif de cette première prise en main</h3>
+        <p>Vous devez pouvoir passer d'un devis PDF à un chantier exploitable, puis comprendre immédiatement quels lots sont rentables.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">11 / Navigation</span>
+      </div>
+      <p class="eyebrow">Boutons de gauche</p>
+      <h2>Comprendre chaque entrée du menu</h2>
+      <p>La barre latérale permet d'accéder aux principaux écrans du logiciel. Elle reste visible pour passer rapidement d'un usage à l'autre.</p>
+      <div class="button-list">
+        <div class="button-doc"><strong>Tableau de bord</strong><p>Affiche le chantier actif : indicateurs globaux, facturation, recommandations et tableau des lots. C'est l'écran principal de pilotage.</p></div>
+        <div class="button-doc"><strong>Chantiers</strong><p>Affiche la liste des chantiers créés ou importés. Permet d'ouvrir un chantier, modifier sa fiche et créer un nouveau chantier.</p></div>
+        <div class="button-doc"><strong>Devis PDF</strong><p>Permet d'importer un devis PDF, de contrôler les lignes détectées, de vérifier les totaux et de valider la création du chantier.</p></div>
+        <div class="button-doc"><strong>Facturation</strong><p>Liste les échéances de facturation de tous les chantiers : acompte, situation, solde, retard ou facture envoyée.</p></div>
+        <div class="button-doc"><strong>Bibliothèque lots</strong><p>Affiche les familles de lots utilisées pour classer automatiquement les lignes du devis : plomberie, électricité, peinture, etc.</p></div>
+        <div class="button-doc"><strong>Réglages marge</strong><p>Permet de modifier la marge cible, le seuil rouge et le nombre de jours d'alerte avant une facture.</p></div>
+      </div>
+      <div class="callout" style="margin-top: 14px;">
+        <h3>À retenir</h3>
+        <p>Le flux normal est : Devis PDF → validation → Chantiers → Tableau de bord → Facturation.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">12 / Boutons principaux</span>
+      </div>
+      <p class="eyebrow">Actions rapides</p>
+      <h2>À quoi sert chaque bouton en haut de l'écran ?</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Importer un devis PDF</strong><p>Ouvre la sélection de fichier. Le devis est lu par Nova+, puis placé dans l'écran Devis PDF pour validation avant création du chantier.</p></div>
+        <div class="button-doc"><strong>Exporter bilan</strong><p>Génère un fichier CSV du chantier actif avec les lots, ventes, coûts, marges, bénéfices et prix cibles. Le fichier peut être ouvert dans Excel.</p></div>
+        <div class="button-doc"><strong>Créer un exemple</strong><p>Crée un exemple de devis pour montrer le fonctionnement sans fichier PDF. Utile pour une démonstration rapide.</p></div>
+        <div class="button-doc"><strong>Recherche globale</strong><p>Filtre les lots, lignes, chantiers, factures ou mots-clés affichés selon le texte saisi.</p></div>
+        <div class="button-doc"><strong>Profil / icônes haut droit</strong><p>Éléments visuels de l'interface SaaS. Dans cette version de démonstration, ils ne déclenchent pas encore de compte utilisateur.</p></div>
+      </div>
+      <div class="callout green" style="margin-top: 14px;">
+        <h3>Conseil de présentation</h3>
+        <p>Commencer par “Importer un devis PDF”, puis montrer que Nova+ demande une validation avant de créer le chantier.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">13 / Validation PDF</span>
+      </div>
+      <p class="eyebrow">Écran Devis PDF</p>
+      <h2>Chaque élément de l'écran de validation</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Choisir un PDF</strong><p>Permet d'importer un devis depuis l'ordinateur. Nova+ lit le texte du PDF et recherche les lignes avec montants.</p></div>
+        <div class="button-doc"><strong>Fichier</strong><p>Nom du devis importé. Sert à identifier l'origine du chantier créé.</p></div>
+        <div class="button-doc"><strong>Lignes détectées</strong><p>Nombre de lignes ou chapitres exploitables détectés dans le devis.</p></div>
+        <div class="button-doc"><strong>Total détecté</strong><p>Total des montants lus dans le devis. Sur le devis Turenne, ce total ressort à 153 703,63 € HT.</p></div>
+        <div class="button-doc"><strong>Total importé</strong><p>Total que Nova+ va injecter dans le chantier après validation. Il doit correspondre au total détecté.</p></div>
+        <div class="button-doc"><strong>Écart</strong><p>Différence entre total détecté et total importé. Si l'écart affiche OK, l'import est cohérent.</p></div>
+        <div class="button-doc"><strong>Menu de lot</strong><p>Chaque ligne détectée possède un menu pour changer son affectation : gros oeuvre, plomberie, peinture, etc.</p></div>
+        <div class="button-doc"><strong>Annuler</strong><p>Abandonne l'import en cours. Aucun chantier n'est créé.</p></div>
+        <div class="button-doc"><strong>Valider et créer le chantier</strong><p>Crée le chantier à partir des lignes validées. Les lots sont ensuite visibles dans le tableau de bord.</p></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">13B / Inventaire boutons</span>
+      </div>
+      <p class="eyebrow">Boutons par écran</p>
+      <h2>Ce que fait chaque action importante</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Importer un devis PDF</strong><p>Disponible en haut de l'app et dans l'écran Devis PDF. Ouvre le sélecteur de fichier, lit le PDF, puis prépare l'écran de contrôle.</p></div>
+        <div class="button-doc"><strong>Valider et créer le chantier</strong><p>Transforme les lignes détectées en chantier exploitable. À utiliser uniquement si le total importé et les lots sont corrects.</p></div>
+        <div class="button-doc"><strong>Annuler</strong><p>Abandonne l'import en cours. Aucun chantier n'est créé, ce qui permet de reprendre avec un autre PDF.</p></div>
+        <div class="button-doc"><strong>Ouvrir le chantier</strong><p>Dans Chantiers, affiche le chantier sélectionné dans le tableau de bord et charge ses lots, coûts, marges et factures.</p></div>
+        <div class="button-doc"><strong>Nouveau chantier</strong><p>Crée une fiche de chantier manuelle, utile si le devis PDF n'est pas disponible ou si l'on veut préparer une simulation.</p></div>
+        <div class="button-doc"><strong>Créer un exemple</strong><p>Génère un chantier fictif de démonstration. Pratique pour tester l'outil sans utiliser un vrai devis.</p></div>
+        <div class="button-doc"><strong>Exporter bilan</strong><p>Télécharge un fichier CSV avec les lots, ventes, coûts, marges, bénéfices et prix cibles du chantier actif.</p></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">13C / Inventaire boutons</span>
+      </div>
+      <p class="eyebrow">Actions de gestion</p>
+      <h2>Les boutons qui modifient les données</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Ajouter lot</strong><p>Ajoute une ligne de lot manuelle dans le chantier actif avec son nom, sa description, son prix de vente et ses coûts.</p></div>
+        <div class="button-doc"><strong>Supprimer</strong><p>Supprime un lot du chantier après confirmation. À utiliser si une ligne importée est inutile ou si un doublon a été créé.</p></div>
+        <div class="button-doc"><strong>Ajouter échéance</strong><p>Ajoute une facture à suivre : acompte, situation, solde, montant et date prévue.</p></div>
+        <div class="button-doc"><strong>Marquer envoyée</strong><p>Passe une facture en statut envoyé. Elle sort alors des urgences de facturation.</p></div>
+        <div class="button-doc"><strong>Marquer à faire</strong><p>Remet une facture envoyée dans les tâches à traiter si elle doit être suivie à nouveau.</p></div>
+        <div class="button-doc"><strong>Ajouter à la bibliothèque</strong><p>Ajoute une famille de lot et ses mots-clés pour améliorer le classement automatique des prochains devis PDF.</p></div>
+        <div class="button-doc"><strong>Réinitialiser les données</strong><p>Efface la démonstration locale et remet l'app dans son état de départ. À utiliser seulement si vous voulez repartir de zéro.</p></div>
+      </div>
+      <div class="callout" style="margin-top: 14px;">
+        <h3>Règle simple</h3>
+        <p>Si le bouton crée, supprime, valide ou marque une facture, il modifie les données. Si le bouton exporte ou ouvre un écran, il sert surtout à consulter.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">14 / Tableau des lots</span>
+      </div>
+      <p class="eyebrow">Champs à remplir</p>
+      <h2>Comment compléter un lot</h2>
+      <p>Chaque ligne du tableau correspond à un lot métier. L'objectif est de comparer ce qui a été vendu avec ce que le chantier coûte réellement.</p>
+      <div class="mini-grid">
+        <div class="mini"><strong>Vente HT</strong><span>Montant importé depuis le devis. C'est le chiffre d'affaires du lot.</span></div>
+        <div class="mini"><strong>Matériaux</strong><span>Montant réel des fournitures, achats, consommables et matériaux.</span></div>
+        <div class="mini"><strong>Main-d'œuvre</strong><span>Coût des équipes internes, heures, intérim ou pose.</span></div>
+        <div class="mini"><strong>Commercial</strong><span>Commission, coût commercial ou temps de vente affecté au chantier.</span></div>
+        <div class="mini"><strong>Autres frais</strong><span>Location, transport, carburant, décharge, imprévus, sous-traitance éventuelle.</span></div>
+        <div class="mini"><strong>Coût prévu</strong><span>Budget de coût estimé au départ. Il sert à mesurer l'écart avec le réel.</span></div>
+      </div>
+      <div class="callout" style="margin-top: 14px;">
+        <h3>Saisie normale</h3>
+        <p>Vous remplissez les coûts quand vous les connaissez. Le coût réel se calcule automatiquement : vous ne le saisissez pas manuellement.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">15 / Résultats calculés</span>
+      </div>
+      <p class="eyebrow">Lecture financière</p>
+      <h2>Comprendre marge, bénéfice et prix cible</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Coût réel</strong><p>Calcul automatique : matériaux + main-d'œuvre + commercial + autres frais. Si rien n'est saisi, il reste à 0 €.</p></div>
+        <div class="button-doc"><strong>Marge réelle</strong><p>Pourcentage de rentabilité réelle du lot. Elle s'affiche seulement quand un coût réel existe.</p></div>
+        <div class="button-doc"><strong>Bénéfice réel</strong><p>Montant gagné en euros : vente HT - coût réel. C'est le gain brut du lot.</p></div>
+        <div class="button-doc"><strong>Prix cible</strong><p>Prix de vente théorique à pratiquer pour atteindre la marge cible. Si le prix cible dépasse la vente HT, le lot a été vendu trop bas.</p></div>
+        <div class="button-doc"><strong>Statut</strong><p>À saisir, rentable, limite ou danger selon les coûts renseignés et les seuils de marge.</p></div>
+      </div>
+      <div class="formula" style="margin-top: 14px;">
+        Exemple : coût réel 10 000 € / marge cible 28% = prix cible 13 889 €.
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">16 / Détail et correction</span>
+      </div>
+      <p class="eyebrow">Contrôle avancé</p>
+      <h2>Modifier une ligne après création du chantier</h2>
+      <p>Chaque lot peut afficher les lignes du devis qui le composent. Cette fonction vous permet de vérifier précisément l'import.</p>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><h3>Ouvrir le détail</h3><p>Cliquer sur “ligne(s) du devis” sous le nom du lot.</p></div></div>
+        <div class="step"><div class="num">2</div><div><h3>Lire les lignes</h3><p>Contrôler le libellé et le montant de chaque ligne rattachée au lot.</p></div></div>
+        <div class="step"><div class="num">3</div><div><h3>Changer le lot</h3><p>Utiliser le menu déroulant pour déplacer une ligne vers une autre famille de lot.</p></div></div>
+        <div class="step"><div class="num">4</div><div><h3>Vérifier le recalcul</h3><p>Nova+ reconstruit les lots et recalcule les totaux après réaffectation.</p></div></div>
+      </div>
+      <div class="callout green" style="margin-top: 14px;">
+        <h3>À retenir</h3>
+        <p>Nova+ ne vous impose pas un classement opaque : vous gardez la main sur chaque ligne du devis.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">17 / Écran Chantiers</span>
+      </div>
+      <p class="eyebrow">Gestion des dossiers</p>
+      <h2>Utiliser l'écran Chantiers</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Carte chantier</strong><p>Résumé d'un chantier : nom, client, adresse, devis lié, montant vendu et état des coûts.</p></div>
+        <div class="button-doc"><strong>Ouvrir le chantier</strong><p>Définit le chantier comme chantier actif et renvoie vers le tableau de bord.</p></div>
+        <div class="button-doc"><strong>Nouveau chantier</strong><p>Crée un chantier vierge pour saisir manuellement un dossier sans import PDF.</p></div>
+        <div class="button-doc"><strong>Fiche chantier</strong><p>Permet de modifier nom, client, adresse, date de début, date de fin prévue et statut.</p></div>
+        <div class="button-doc"><strong>Sauvegarde locale</strong><p>Les modifications sont conservées dans le navigateur utilisé pour la démonstration.</p></div>
+      </div>
+      <div class="callout red" style="margin-top: 14px;">
+        <h3>Important</h3>
+        <p>Dans cette version MVP locale, les données ne sont pas encore synchronisées sur serveur. Pour la production, il faudra une base de données.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">18 / Facturation détaillée</span>
+      </div>
+      <p class="eyebrow">Boutons et champs</p>
+      <h2>Ajouter et suivre une échéance</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Libellé</strong><p>Nom court de l'échéance : acompte, situation, solde, avenant, retenue.</p></div>
+        <div class="button-doc"><strong>Action</strong><p>Action attendue : facture 30% à envoyer, solde à préparer, facture avenant, etc.</p></div>
+        <div class="button-doc"><strong>Pourcentage</strong><p>Pourcentage du prix de vente chantier à facturer. Nova+ calcule le montant automatiquement.</p></div>
+        <div class="button-doc"><strong>Date</strong><p>Date prévue d'envoi ou d'échéance de la facture.</p></div>
+        <div class="button-doc"><strong>Ajouter échéance</strong><p>Ajoute la ligne dans le suivi de facturation.</p></div>
+        <div class="button-doc"><strong>Marquer envoyée</strong><p>Change le statut de l'échéance pour indiquer que la facture a été envoyée.</p></div>
+        <div class="button-doc"><strong>Marquer à faire</strong><p>Remet une échéance en attente si elle a été marquée envoyée par erreur.</p></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">19 / Réglages</span>
+      </div>
+      <p class="eyebrow">Paramètres</p>
+      <h2>Adapter les seuils à l'entreprise</h2>
+      <div class="button-list">
+        <div class="button-doc"><strong>Objectif marge</strong><p>Marge cible utilisée pour calculer le prix cible et juger la rentabilité.</p></div>
+        <div class="button-doc"><strong>Marge cible</strong><p>Champ numérique qui reprend le même objectif que le curseur de la barre latérale.</p></div>
+        <div class="button-doc"><strong>Rouge si marge sous</strong><p>Seuil en dessous duquel un lot ou un chantier passe en danger.</p></div>
+        <div class="button-doc"><strong>Alerte facture avant échéance</strong><p>Nombre de jours avant la date où une facture passe en vigilance jaune.</p></div>
+        <div class="button-doc"><strong>Réinitialiser les données</strong><p>Efface les données locales de démonstration et recharge l'état initial.</p></div>
+      </div>
+      <div class="callout" style="margin-top: 14px;">
+        <h3>Recommandation</h3>
+      <p>Définissez les seuils selon votre entreprise : certaines structures visent 20%, d'autres 30% ou plus selon leur modèle.</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">20 / Problèmes fréquents</span>
+      </div>
+      <p class="eyebrow">Dépannage</p>
+      <h2>Que faire si quelque chose semble incorrect ?</h2>
+      <div class="warning-list">
+        <div class="warning-item"><strong>Le PDF ne donne aucune ligne</strong><span>Le devis est probablement scanné ou constitué d'images. Il faudra utiliser un module OCR ou demander un export PDF texte.</span></div>
+        <div class="warning-item"><strong>Le total détecté ne correspond pas</strong><span>Ne pas valider. Contrôler les lignes, vérifier les pages, puis demander un PDF exporté depuis le logiciel de devis.</span></div>
+        <div class="warning-item"><strong>Une ligne est dans le mauvais lot</strong><span>Changer son affectation dans l'écran de validation ou dans le détail du lot après création du chantier.</span></div>
+        <div class="warning-item"><strong>La marge affiche “À renseigner”</strong><span>C'est normal si aucun coût n'a été saisi. Renseigner matériaux, main-d'œuvre, commercial ou autres frais.</span></div>
+        <div class="warning-item"><strong>Le prix cible semble trop haut</strong><span>Le coût réel est élevé par rapport à la marge cible. Cela signifie que le lot aurait dû être vendu plus cher pour atteindre l'objectif.</span></div>
+        <div class="warning-item"><strong>Les données disparaissent sur un autre ordinateur</strong><span>Le MVP utilise une sauvegarde locale navigateur. La version SaaS production devra stocker les données sur serveur.</span></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">21 / Prise en main</span>
+      </div>
+      <p class="eyebrow">Parcours guidé</p>
+      <h2>Votre premier test en 5 minutes</h2>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><h3>Ouvrir l'écran Devis PDF</h3><p>Allez dans le menu de gauche, puis cliquez sur “Devis PDF”.</p></div></div>
+        <div class="step"><div class="num">2</div><div><h3>Importer votre devis</h3><p>Choisissez votre PDF et attendez que Nova+ affiche les lignes détectées.</p></div></div>
+        <div class="step"><div class="num">3</div><div><h3>Contrôler les lignes</h3><p>Vérifiez les montants, l'écart et les lots proposés avant de valider.</p></div></div>
+        <div class="step"><div class="num">4</div><div><h3>Créer le chantier</h3><p>Validez l'import, puis ouvrez le chantier depuis l'écran Chantiers.</p></div></div>
+        <div class="step"><div class="num">5</div><div><h3>Renseigner vos coûts</h3><p>Saisissez matériaux, main-d'œuvre, commercial et autres frais sur les lots connus.</p></div></div>
+        <div class="step"><div class="num">6</div><div><h3>Lire vos résultats</h3><p>Regardez la marge réelle, le bénéfice réel, le prix cible et les alertes de facturation.</p></div></div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="topline">
+        <div class="brand"><div class="mark"></div><strong>Nova+</strong></div>
+        <span class="page-number">22 / Périmètre</span>
+      </div>
+      <p class="eyebrow">Version livrée</p>
+      <h2>Ce qui est inclus et ce qui viendra ensuite</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Inclus dans le MVP</h3>
+          <div class="checklist">
+            <div class="check">Import PDF texte.</div>
+            <div class="check">Validation total et écart.</div>
+            <div class="check">Correction des lots.</div>
+            <div class="check">Tableau de rentabilité.</div>
+            <div class="check">Facturation et export CSV.</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>À prévoir en production</h3>
+          <div class="checklist">
+            <div class="check">Comptes utilisateurs.</div>
+            <div class="check">Base de données serveur.</div>
+            <div class="check">OCR pour PDF scannés.</div>
+            <div class="check">Droits par profil.</div>
+            <div class="check">Exports PDF avancés.</div>
+          </div>
+        </div>
+      </div>
+      <div class="callout green" style="margin-top: 16px;">
+        <h3>Positionnement</h3>
+        <p>Cette version est faite pour démontrer le produit, valider le besoin métier et cadrer la V1 SaaS.</p>
+      </div>
+    </section>
+  </body>
+</html>
