@@ -1374,6 +1374,7 @@ function renderOrders() {
       <div class="empty-review">
         <strong>Aucune ligne commande</strong>
         <span>Importez une liste fournisseur PDF pour obtenir les catégories, lignes, prix et statuts.</span>
+        <button class="upload-button compact" type="button" data-add-supply-line="À classer">Ajouter une ligne</button>
       </div>
     `;
     return;
@@ -1389,7 +1390,10 @@ function renderOrders() {
           <p class="eyebrow">${escapeHtml(category)}</p>
           <h4>${lines.length} ligne(s)</h4>
         </div>
-        <strong>${money(categoryTotal)}</strong>
+        <div class="supply-category-actions">
+          <strong>${money(categoryTotal)}</strong>
+          <button class="upload-button compact" type="button" data-add-supply-line="${escapeHtml(category)}">Ajouter une ligne</button>
+        </div>
       </div>
       <div class="supply-lines">
         ${lines
@@ -1460,6 +1464,7 @@ function renderOrders() {
                   <span>Nouvelle livraison</span>
                   <input type="date" value="${escapeHtml(line.deliveryDate || "")}" data-supply-field="deliveryDate" data-supply-id="${line.id}" ${line.status === "delayed" ? "" : "disabled"} />
                 </label>
+                <button class="supply-line-delete" type="button" data-delete-supply-line="${line.id}" aria-label="Supprimer ${escapeHtml(line.label)}">Supprimer</button>
               </div>
             `;
           })
@@ -1962,6 +1967,34 @@ function groupedOrders(lines) {
     groups.get(category).push(line);
   });
   return [...groups.entries()];
+}
+
+function createSupplyOrderLine(category = "À classer") {
+  return {
+    id: `supply-manual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    category: category || "À classer",
+    label: "Nouvelle ligne",
+    supplier: "",
+    reference: "",
+    quantity: "",
+    unit: "",
+    unitHT: 0,
+    totalHT: 0,
+    ttc: 0,
+    finalPrice: 0,
+    purchasePrice: 0,
+    salePrice: 0,
+    status: "to_order",
+    packageReference: "",
+    deliveryLocation: "",
+    deliveryPrice: 0,
+    orderDate: "",
+    receivedDate: "",
+    deliveryDate: "",
+    sourceFile: "Ajout manuel",
+    page: "",
+    raw: "",
+  };
 }
 
 function orderStatus(value) {
@@ -2821,6 +2854,29 @@ function bindEvents() {
       return;
     }
 
+    const addSupplyLineButton = event.target.closest("[data-add-supply-line]");
+    if (addSupplyLineButton) {
+      const project = activeProject();
+      project.supplyOrders = Array.isArray(project.supplyOrders) ? project.supplyOrders : [];
+      project.supplyOrders.push(createSupplyOrderLine(addSupplyLineButton.dataset.addSupplyLine || "À classer"));
+      saveState();
+      renderOrders();
+      return;
+    }
+
+    const deleteSupplyLineButton = event.target.closest("[data-delete-supply-line]");
+    if (deleteSupplyLineButton) {
+      const project = activeProject();
+      const line = (project.supplyOrders || []).find((item) => item.id === deleteSupplyLineButton.dataset.deleteSupplyLine);
+      if (!line) return;
+      if (!confirm(`Supprimer la ligne commande "${line.label || "Sans nom"}" ?`)) return;
+      project.supplyOrders = (project.supplyOrders || []).filter((item) => item.id !== line.id);
+      saveState();
+      renderOrders();
+      renderSuppliers();
+      return;
+    }
+
     const deleteSupplierButton = event.target.closest("[data-delete-supplier]");
     if (deleteSupplierButton) {
       const supplier = (state.suppliers || []).find((item) => item.id === deleteSupplierButton.dataset.deleteSupplier);
@@ -3396,11 +3452,15 @@ function textItemsToLines(items, pageNumber) {
 
   return [...buckets.entries()]
     .sort((a, b) => b[0] - a[0])
-    .map(([y, parts]) => ({
-      page: pageNumber,
-      y,
-      text: normalizeSpaces(parts.sort((a, b) => a.x - b.x).map((part) => part.text).join(" ")),
-    }))
+    .map(([y, parts]) => {
+      const sortedParts = parts.sort((a, b) => a.x - b.x);
+      return {
+        page: pageNumber,
+        y,
+        parts: sortedParts,
+        text: normalizeSpaces(sortedParts.map((part) => part.text).join(" ")),
+      };
+    })
     .filter((line) => line.text.length > 2);
 }
 
@@ -3433,6 +3493,9 @@ function extractQuoteLines(pageLines) {
 }
 
 function extractSupplyOrderLines(pageLines, fileName = "") {
+  const tableLines = extractSupplyOrderTableLines(pageLines, fileName);
+  if (tableLines.length >= 5) return tableLines;
+
   const ignored = /\b(total achat|attention|prix final|validation client|liens|automatique|image type|ht tva ttc|oseraie_liste|sdb familiale)\b/i;
   let currentCategory = "À classer";
   const lines = [];
@@ -3489,6 +3552,109 @@ function extractSupplyOrderLines(pageLines, fileName = "") {
   return dedupeSupplyOrders(lines).slice(0, 180);
 }
 
+function extractSupplyOrderTableLines(pageLines, fileName = "") {
+  let currentCategory = "À classer";
+  const lines = [];
+
+  pageLines.forEach((line) => {
+    const text = normalizeSpaces(line.text);
+    if (!text || /\b(image|dénomination produit|denomination produit|prix total ht|montant ttc|total achat|attention|liens substitue)\b/i.test(text)) return;
+
+    const rowCategory = normalizeSupplyCategory(cellText(line, 46, 82) || cellText(line, 82, 166));
+    const amountCells = [
+      cellText(line, 405, 445),
+      cellText(line, 442, 475),
+      cellText(line, 472, 510),
+      cellText(line, 670, 716),
+    ];
+    const hasPrice = amountCells.some((cell) => extractCellAmounts(cell).length);
+    if (!hasPrice && rowCategory) {
+      currentCategory = rowCategory;
+      return;
+    }
+
+    const type = cleanSupplyCell(cellText(line, 82, 166));
+    const product = cleanSupplyCell(cellText(line, 166, 250));
+    const label = normalizeSpaces([type, product].filter(Boolean).join(" - "));
+    const unit = cleanSupplyCell(cellText(line, 315, 345));
+    const quantity = cleanSupplyCell(cellText(line, 342, 380));
+    const unitPrices = extractCellAmounts(cellText(line, 405, 445));
+    const totals = extractCellAmounts(cellText(line, 442, 475));
+    const ttcs = extractCellAmounts(cellText(line, 472, 510));
+    const finalPrices = extractCellAmounts(cellText(line, 670, 716));
+    const totalHT = totals[0] ?? 0;
+
+    if (!label || label.length < 3 || !unit || (!totalHT && !unitPrices.length && !ttcs.length)) return;
+    if (/\b(ht|tva|ttc|total|achat|remarques|commandé|commande|liens)\b/i.test(label)) return;
+
+    const supplier = cleanSupplyCell(cellText(line, 280, 316));
+    const reference = cleanSupplyCell(cellText(line, 248, 281));
+    const purchaseOwner = cleanSupplyCell(cellText(line, 544, 573));
+    const packageReference = cleanSupplyCell(cellText(line, 573, 620));
+    const orderedNote = cleanSupplyCell(cellText(line, 620, 670));
+    const category = normalizeSupplyCategory(currentCategory) || classifySupplyCategory(`${currentCategory} ${label}`);
+
+    lines.push({
+      id: `supply-${Date.now()}-${lines.length}`,
+      category,
+      label,
+      supplier,
+      reference,
+      quantity,
+      unit,
+      unitHT: unitPrices[0] ?? 0,
+      totalHT,
+      ttc: ttcs[0] ?? 0,
+      finalPrice: totalHT || ttcs[0] || unitPrices[0] || 0,
+      purchasePrice: totalHT || ttcs[0] || unitPrices[0] || 0,
+      salePrice: 0,
+      status: "to_order",
+      packageReference,
+      deliveryLocation: "",
+      deliveryPrice: 0,
+      orderDate: "",
+      receivedDate: "",
+      deliveryDate: "",
+      sourceFile: fileName,
+      page: line.page,
+      raw: text,
+      purchaseOwner,
+      orderedNote: isDateLike(orderedNote) ? orderedNote : "",
+    });
+  });
+
+  return dedupeSupplyOrders(lines).slice(0, 220);
+}
+
+function cellText(line, minX, maxX) {
+  return normalizeSpaces(
+    (line.parts || [])
+      .filter((part) => part.x >= minX && part.x < maxX)
+      .map((part) => part.text)
+      .join(" ")
+  );
+}
+
+function extractCellAmounts(value) {
+  return [...String(value || "").matchAll(/(?:^|\s)(-?(?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.]\d{2}))\s*€/gi)]
+    .map((match) => parseFrenchNumber(match[1]))
+    .filter((amount) => Number.isFinite(amount) && amount >= 0);
+}
+
+function cleanSupplyCell(value) {
+  return normalizeSpaces(String(value || "").replace(/https?:\/\/\S+/gi, " ").replace(/\s+/g, " ")).slice(0, 180);
+}
+
+function normalizeSupplyCategory(value) {
+  const clean = cleanSupplyCell(value);
+  if (!clean || clean.length > 60 || /^[a-z]$/i.test(clean)) return "";
+  return supplyCategoryFromHeading(clean) || classifySupplyCategory(clean);
+}
+
+function isDateLike(value) {
+  return /^\d{1,2}\/\d{1,2}$/.test(String(value || "").trim());
+}
+
 function supplyCategoryFromHeading(text) {
   const normalized = normalizeForMatch(text);
   const headings = [
@@ -3496,12 +3662,13 @@ function supplyCategoryFromHeading(text) {
     ["Revêtements de sol", ["revetements de sol", "carrelage sol"]],
     ["Faïence", ["faience", "carrelage mural"]],
     ["Maçonnerie", ["maconnerie"]],
-    ["Plomberie", ["plomberie", "equipements"]],
+    ["Plomberie", ["plomberie", "equipements", "sanitaire"]],
     ["Meuble vasque", ["meuble vasque", "vasque"]],
     ["Menuiserie", ["menuiserie", "poignee", "placard", "claustra"]],
     ["Plan vasque", ["plan vasque", "plan de travail"]],
-    ["Miroir / Rangement", ["miroir", "rangement"]],
+    ["Miroir / Rangement", ["miroir", "rangement", "armoire", "pharmacie"]],
     ["Éclairage", ["eclairage", "applique", "spot", "plafonnier"]],
+    ["Accessoires", ["accessoires", "tringle", "rideau"]],
   ];
   if (text.length > 48) return null;
   const match = headings.find(([, aliases]) => aliases.some((alias) => normalized === normalizeForMatch(alias) || normalized.includes(normalizeForMatch(alias))));
@@ -3520,6 +3687,7 @@ function classifySupplyCategory(value) {
     ["Plan vasque", ["plan de travail", "plan vasque", "compact", "stratifie"]],
     ["Menuiserie", ["poignee", "placard", "claustra", "mdf", "tablette"]],
     ["Éclairage", ["applique", "spot", "plafonnier", "luminaire"]],
+    ["Accessoires", ["accessoire", "tringle", "rideau", "naissance"]],
   ];
   const match = rules.find(([, keywords]) => keywords.some((keyword) => normalized.includes(normalizeForMatch(keyword))));
   return match ? match[0] : supplyCategoryFromHeading(value) || "À classer";
@@ -3574,24 +3742,29 @@ function dedupeSupplyOrders(lines) {
 }
 
 function extractStructuredQuoteLines(pageLines) {
-  const sectionPattern = /^(\d{1,2})\s+(.+?)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})$/;
-  const itemPattern = /^(\d{1,2}\.\d+)\s+(.+?)\s+([A-Za-zÀ-ÿ0-9².,'’+()\/ -]{1,24})\s+(\d+(?:,\d+)?)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})(?:\s+(\d+(?:,\d+)?))?$/i;
+  const headingPattern = /^(\d{1,2})\s+(.+)$/;
+  const sectionTotalPattern = /^Sous-total\s+(.+?)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})$/i;
+  const itemPattern = /^(\d{1,2}\.\d+)\s+(.+?)\s+(\d+(?:[,.]\d+)?)\s+(ens|u|m2|m²|m3|m³|ml|m|forfait|fft|h)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})(?:\s+(\d+(?:,\d+)?))?$/i;
   let currentSection = "";
   const sections = [];
   const itemLines = [];
 
   pageLines.forEach((line) => {
     const text = normalizeSpaces(line.text);
-    const sectionMatch = text.match(sectionPattern);
-    if (sectionMatch && !text.includes(".")) {
-      currentSection = sectionMatch[2];
-      const amount = parseFrenchNumber(sectionMatch[3]);
+    if (!text || /\b(devis|validite|validité|désignation|designation|signature|siret|intracommunautaire|conditions generales|mode de reglement|total h\.?t|total t\.?t\.?c|dont main d'oeuvre|tva due)\b/i.test(text)) {
+      return;
+    }
+
+    const sectionTotalMatch = text.match(sectionTotalPattern);
+    if (sectionTotalMatch) {
+      const amount = parseFrenchNumber(sectionTotalMatch[2]);
       if (amount && amount > 0) {
+        const label = normalizeSpaces(sectionTotalMatch[1]);
         sections.push({
-          code: sectionMatch[1],
-          label: currentSection,
-          section: currentSection,
-          lot: classifyLot(currentSection),
+          code: "",
+          label,
+          section: label,
+          lot: classifyLot(label),
           amount,
           confidence: 96,
           page: line.page,
@@ -3602,6 +3775,12 @@ function extractStructuredQuoteLines(pageLines) {
       return;
     }
 
+    const headingMatch = text.match(headingPattern);
+    if (headingMatch && !headingMatch[1].includes(".") && !extractAllQuoteAmounts(text).length && text.length < 90) {
+      currentSection = normalizeSpaces(headingMatch[2]);
+      return;
+    }
+
     const itemMatch = text.match(itemPattern);
     if (!itemMatch) return;
 
@@ -3609,7 +3788,7 @@ function extractStructuredQuoteLines(pageLines) {
     if (!amount || amount <= 0) return;
 
     const code = itemMatch[1];
-    const label = normalizeSpaces(itemMatch[2]);
+    const label = normalizeSpaces(`${code} - ${itemMatch[2]}`);
     const context = normalizeSpaces(`${currentSection} ${label}`);
     const lot = classifyLot(context);
 
@@ -3629,6 +3808,10 @@ function extractStructuredQuoteLines(pageLines) {
   const sectionTotal = sections.reduce((sum, line) => sum + line.amount, 0);
   const itemTotal = itemLines.reduce((sum, line) => sum + line.amount, 0);
 
+  if (itemLines.length >= 3) {
+    return dedupeQuoteLines(itemLines).slice(0, 180);
+  }
+
   if (sections.length >= 3 && sectionTotal > 0) {
     const gapRate = Math.abs(sectionTotal - itemTotal) / sectionTotal;
     if (!itemLines.length || gapRate > 0.02) {
@@ -3637,6 +3820,12 @@ function extractStructuredQuoteLines(pageLines) {
   }
 
   return dedupeQuoteLines(itemLines);
+}
+
+function extractAllQuoteAmounts(text) {
+  return [...String(text || "").matchAll(/(?:^|\s)(-?(?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.]\d{2}))(?=\s|$)/gi)]
+    .map((match) => parseFrenchNumber(match[1]))
+    .filter((value) => Number.isFinite(value) && value >= 0);
 }
 
 function extractLastAmount(text) {

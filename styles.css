@@ -1439,7 +1439,7 @@ td select:disabled {
 
 .supply-category {
   overflow: hidden;
-  min-width: 2370px;
+  min-width: 2470px;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: #fff;
@@ -1468,13 +1468,20 @@ td select:disabled {
   white-space: nowrap;
 }
 
+.supply-category-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
 .supply-lines {
   display: grid;
 }
 
 .supply-line {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) 160px 145px 170px 130px 130px 130px 130px 135px 160px repeat(3, 150px);
+  grid-template-columns: minmax(300px, 1fr) 160px 145px 170px 130px 130px 130px 130px 135px 160px repeat(3, 150px) 92px;
   gap: 12px;
   align-items: center;
   padding: 13px 18px;
@@ -1713,6 +1720,23 @@ td select:disabled {
   font-size: 10px;
   line-height: 1.2;
   white-space: normal;
+}
+
+.supply-line-delete {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(220, 90, 112, 0.24);
+  border-radius: 11px;
+  background: #fff7f9;
+  color: #c6405a;
+  font-size: 11px;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.supply-line-delete:hover {
+  border-color: rgba(220, 90, 112, 0.42);
+  background: #fff1f4;
 }
 
 .extract-row,
