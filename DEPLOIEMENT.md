@@ -19,7 +19,10 @@ Render est adapté ici parce que Nova+ utilise :
 6. Renseigner la variable secrète :
 
 ```text
-NOVA_AUTH_PASSWORD=un-mot-de-passe-solide
+NOVA_ADMIN_ID=admin
+NOVA_ADMIN_PASSWORD=un-mot-de-passe-solide
+NOVA_ADMIN_NAME=Mon entreprise
+NOVA_SESSION_SECRET=une-cle-secrete-aleatoire-tres-longue
 ```
 
 7. Lancer le déploiement.
@@ -50,7 +53,9 @@ app.client-btp.fr
 ```text
 PORT=4173
 DATA_DIR=/var/data/nova
-NOVA_AUTH_PASSWORD=mot-de-passe
+NOVA_ADMIN_ID=admin
+NOVA_ADMIN_PASSWORD=mot-de-passe
+NOVA_SESSION_SECRET=une-cle-secrete-aleatoire-tres-longue
 ```
 
 Sur Render, `PORT` est géré automatiquement. Ne pas le définir sauf besoin particulier.
@@ -68,7 +73,7 @@ Ces données sont sur le disque persistant configuré dans `render.yaml`.
 
 ## Limite de cette V1 exploitable
 
-Cette version est exploitable pour un client unique ou une petite équipe avec mot de passe partagé.
+Cette version isole les données et documents de chaque compte client. Créez les accès supplémentaires avec `npm run user:add -- identifiant "mot-de-passe" "Nom client"` depuis un terminal ayant accès au volume persistant.
 
 Pour une vraie version SaaS multi-clients, il faudra ensuite :
 

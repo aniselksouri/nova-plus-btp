@@ -24,15 +24,31 @@ http://localhost:4173
 
 Important : l'ouverture directe de `index.html` fonctionne encore pour une démo, mais elle reste limitée au stockage navigateur. Pour tester la sauvegarde réelle et les documents lourds, utiliser `npm start`.
 
-### Protection par mot de passe
+### Comptes clients
 
-En production, définir obligatoirement :
+Depuis la page de connexion, un nouveau client peut sélectionner **Créer mon compte**, renseigner son entreprise, choisir son identifiant et son mot de passe, puis accéder immédiatement à son espace isolé.
+
+Le lien de connexion stable est `/connexion`. Sur l’installation historique protégée par `NOVA_AUTH_PASSWORD`, le compte propriétaire utilise l’identifiant `nova` et son ancien mot de passe : Nova+ rattache automatiquement les données existantes au compte administrateur. Cette reprise d’identifiant est unique et se désactive après sa première utilisation.
+
+Lors de la migration d’une installation existante, Nova+ conserve les fichiers historiques à leur emplacement, crée une sauvegarde supplémentaire dans `data/backups/pre-accounts-v1`, puis copie les données vers le premier compte administrateur. Aucune donnée historique n’est déplacée ou supprimée.
+
+Créer le premier compte administrateur :
 
 ```bash
-NOVA_AUTH_PASSWORD=mot-de-passe-solide
+npm run user:add -- mon-identifiant "mot-de-passe-solide" "Nom de l'entreprise"
 ```
 
-Le navigateur affichera une demande d'identification. Le nom utilisateur peut être n'importe quoi, seul le mot de passe est vérifié.
+Créer ensuite un compte distinct par client avec la même commande. Le premier compte créé reçoit le rôle `admin`, les suivants le rôle `client`. Chaque compte dispose de ses propres chantiers et documents. Les mots de passe sont hachés avec scrypt et ne sont jamais enregistrés en clair.
+
+L’administrateur peut aussi tout gérer directement dans Nova+ : **Réglages marge → Comptes clients Nova+**. Cet espace permet de créer un accès, désactiver ou réactiver un client et définir un nouveau mot de passe. Les comptes clients ne voient pas cette section.
+
+Lister les comptes :
+
+```bash
+npm run user:list
+```
+
+Sur un hébergement neuf, le premier compte peut aussi être créé automatiquement avec `NOVA_ADMIN_ID`, `NOVA_ADMIN_PASSWORD` et `NOVA_ADMIN_NAME`. `NOVA_AUTH_PASSWORD` reste accepté pour migrer un ancien déploiement.
 
 ## Déployer sur Railway, recommandé
 
@@ -42,7 +58,10 @@ Variables Railway :
 
 ```text
 DATA_DIR=/data
-NOVA_AUTH_PASSWORD=mot-de-passe-solide
+NOVA_ADMIN_ID=admin
+NOVA_ADMIN_PASSWORD=mot-de-passe-solide
+NOVA_ADMIN_NAME=Mon entreprise
+NOVA_SESSION_SECRET=une-cle-secrete-aleatoire-tres-longue
 NODE_ENV=production
 ```
 
@@ -62,7 +81,7 @@ Voir aussi [DEPLOIEMENT.md](./DEPLOIEMENT.md).
 2. Sur Render, créer un nouveau `Blueprint`.
 3. Sélectionner le repo.
 4. Render lira `render.yaml`.
-5. Définir la variable secrète `NOVA_AUTH_PASSWORD`.
+5. Définir `NOVA_ADMIN_ID`, `NOVA_ADMIN_PASSWORD`, `NOVA_ADMIN_NAME` et `NOVA_SESSION_SECRET`.
 6. Déployer.
 
 Le disque persistant Render est monté dans `/var/data`. Les données seront conservées dans :
@@ -77,7 +96,9 @@ Le disque persistant Render est monté dans `/var/data`. Les données seront con
 ```bash
 docker build -t nova-plus-btp .
 docker run -p 4173:4173 \
-  -e NOVA_AUTH_PASSWORD=mot-de-passe-solide \
+  -e NOVA_ADMIN_ID=admin \
+  -e NOVA_ADMIN_PASSWORD=mot-de-passe-solide \
+  -e NOVA_SESSION_SECRET=une-cle-secrete-aleatoire-tres-longue \
   -v nova-plus-data:/data \
   nova-plus-btp
 ```
@@ -122,11 +143,11 @@ Ouvrir `index.html` dans un navigateur.
 - Recherche globale.
 - Export CSV du bilan chantier.
 
-## À brancher pour une vraie version SaaS multi-clients
+## À brancher pour passer à grande échelle
 
 - Base de données PostgreSQL.
-- Authentification utilisateurs complète.
+- Réinitialisation de mot de passe par e-mail et double authentification.
 - Stockage objet type S3 ou Supabase Storage.
 - Extraction PDF réelle avec OCR pour les devis scannés.
 - Classification IA des lignes de devis par lot.
-- Multi-utilisateurs et droits par profil.
+- Gestion d'équipes et droits fins par profil au sein d'une même entreprise.

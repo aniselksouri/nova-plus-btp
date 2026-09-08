@@ -50,13 +50,12 @@
             <kbd>⌘ F</kbd>
           </div>
           <div class="account-box">
-            <button type="button" aria-label="Notifications"></button>
-            <button type="button" aria-label="Ajouter"></button>
-            <div class="avatar">AD</div>
-            <div>
-              <strong>Direction travaux</strong>
-              <span>Pilotage BTP</span>
+            <div class="avatar" id="accountAvatar">N+</div>
+            <div class="account-identity">
+              <strong id="accountName">Compte Nova+</strong>
+              <span id="accountIdentifier">Connexion sécurisée</span>
             </div>
+            <button id="logoutButton" class="logout-button" type="button">Se déconnecter</button>
           </div>
         </div>
 
@@ -189,7 +188,7 @@
             </label>
             <label>
               <span>Vente HT</span>
-              <input name="sale" type="number" min="0" step="50" required />
+              <input name="sale" type="number" step="0.01" placeholder="Ex : 2500 ou -500 pour une remise" required />
             </label>
             <label>
               <span>Avancement %</span>
@@ -580,6 +579,35 @@
               <input id="vatRate" type="number" min="0" max="30" step="0.5" value="20" />
             </label>
           </div>
+
+          <section id="accountAdminPanel" class="account-admin-panel hidden" aria-labelledby="accountAdminTitle">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Administration</p>
+                <h3 id="accountAdminTitle">Comptes clients Nova+</h3>
+                <p class="account-admin-intro">Créez un accès distinct pour chaque entreprise. Ses chantiers et documents resteront séparés des autres comptes.</p>
+              </div>
+              <span id="accountCount" class="soft-status">0 compte</span>
+            </div>
+
+            <form id="accountForm" class="account-create-form">
+              <label>
+                <span>Nom du client</span>
+                <input name="displayName" type="text" maxlength="80" placeholder="Entreprise Dupont" required />
+              </label>
+              <label>
+                <span>Identifiant</span>
+                <input name="identifier" type="text" minlength="3" maxlength="64" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}" placeholder="entreprise-dupont" autocomplete="off" required />
+              </label>
+              <label>
+                <span>Mot de passe provisoire</span>
+                <input name="password" type="password" minlength="10" autocomplete="new-password" placeholder="10 caractères minimum" required />
+              </label>
+              <button class="primary-button" type="submit">Créer le compte</button>
+            </form>
+            <p id="accountAdminStatus" class="account-admin-status" role="status" aria-live="polite"></p>
+            <div id="accountsList" class="accounts-list"></div>
+          </section>
         </section>
       </main>
     </div>
@@ -598,7 +626,27 @@
       </div>
     </dialog>
 
+    <dialog id="accountPasswordDialog" class="account-password-dialog">
+      <form id="accountPasswordForm" class="account-password-form" method="dialog">
+        <div>
+          <p class="eyebrow">Sécurité du compte</p>
+          <h3>Définir un nouveau mot de passe</h3>
+          <p id="accountPasswordTarget"></p>
+        </div>
+        <label>
+          <span>Nouveau mot de passe</span>
+          <input name="password" type="password" minlength="10" autocomplete="new-password" required />
+        </label>
+        <p id="accountPasswordStatus" class="account-admin-status" role="alert"></p>
+        <div class="account-password-actions">
+          <button class="upload-button compact" type="button" data-close-account-password>Annuler</button>
+          <button class="primary-button compact" type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="./quote-parser.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

@@ -4,7 +4,10 @@
   "private": true,
   "description": "Nova+ BTP, suivi rentabilité chantier avec sauvegarde serveur locale.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js",
+    "user:add": "node scripts/manage-user.js add",
+    "user:list": "node scripts/manage-user.js list"
   },
   "engines": {
     "node": ">=18"

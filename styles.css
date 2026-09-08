@@ -336,33 +336,25 @@ input[type="range"] {
   align-items: center;
 }
 
-.account-box button {
-  width: 34px;
-  height: 34px;
+.account-box .logout-button {
+  width: auto;
+  height: 36px;
+  margin-left: 4px;
+  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
   background: #fff;
+  color: var(--muted);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 680;
+  transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.account-box button:first-child::before,
-.account-box button:nth-child(2)::before {
-  content: "";
-  display: block;
-  width: 13px;
-  height: 13px;
-  margin: auto;
-  border: 1.8px solid #171922;
-}
-
-.account-box button:first-child::before {
-  border-radius: 50% 50% 6px 6px;
-}
-
-.account-box button:nth-child(2)::before {
-  border-radius: 50%;
-  background: #171922;
-  box-shadow: inset 0 0 0 4px #fff;
+.account-box .logout-button:hover {
+  border-color: #d2d5de;
+  color: var(--ink);
+  transform: translateY(-1px);
 }
 
 .avatar {
@@ -385,6 +377,10 @@ input[type="range"] {
 
 .account-box span {
   color: var(--muted);
+}
+
+.account-identity {
+  min-width: 120px;
 }
 
 .topbar {
@@ -529,6 +525,9 @@ input[type="range"] {
 .status-pill.warning {
   color: var(--yellow);
 }
+
+.status-pill.done { color: #0b8d72; }
+.status-pill.danger { color: var(--red); }
 
 .project-meta {
   display: grid;
@@ -2114,6 +2113,113 @@ td select:disabled {
   background: #fff;
 }
 
+.account-admin-panel {
+  margin-top: 28px;
+  padding-top: 26px;
+  border-top: 1px solid var(--line);
+}
+
+.account-admin-intro {
+  max-width: 68ch;
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.account-create-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(83, 71, 206, 0.16);
+  border-radius: 16px;
+  background: #f7f5ff;
+}
+
+.account-create-form label,
+.account-password-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.account-create-form label > span,
+.account-password-form label > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.account-create-form input,
+.account-password-form input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  outline: 0;
+  background: #fff;
+}
+
+.account-create-form input:focus,
+.account-password-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(83, 71, 206, 0.11);
+}
+
+.account-admin-status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-admin-status.is-error { color: var(--red); }
+.account-admin-status.is-success { color: #0b8d72; }
+
+.accounts-list {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.account-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.4fr) minmax(150px, 1fr) 120px auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 70px;
+  padding: 12px 16px;
+}
+
+.account-row + .account-row { border-top: 1px solid var(--line); }
+.account-row.is-disabled { background: #f8f9fb; }
+.account-row strong, .account-row span, .account-row small { display: block; }
+.account-row strong { font-size: 13px; }
+.account-row span, .account-row small { margin-top: 3px; color: var(--muted); font-size: 11px; }
+.account-row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.account-row-actions button { min-height: 34px; }
+.account-row-actions .danger-action { color: var(--red); }
+
+.account-password-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fbfcfe;
+  box-shadow: 0 30px 80px rgba(20, 22, 32, 0.22);
+}
+
+.account-password-dialog::backdrop { background: rgba(20, 22, 32, 0.42); }
+.account-password-form { display: grid; gap: 20px; padding: 24px; }
+.account-password-form h3 { font-size: 20px; }
+.account-password-form p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+.account-password-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
 .payment-schedule-panel {
   margin-top: 18px;
   padding: 16px;
@@ -3205,7 +3311,8 @@ td select:disabled {
   .work-grid,
   .import-layout,
   .inline-form,
-  .review-grid {
+  .review-grid,
+  .account-create-form {
     grid-template-columns: 1fr;
   }
 }

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connexion · Nova+</title>
+    <link rel="stylesheet" href="/login.css" />
+  </head>
+  <body>
+    <main class="login-layout">
+      <section class="product-pane" aria-label="Présentation Nova+">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span><strong>Nova+</strong></div>
+        <div class="product-copy">
+          <p class="eyebrow">Pilotage BTP</p>
+          <h1>Vos chantiers.<br />Vos marges.<br /><span>Sous contrôle.</span></h1>
+          <p>Retrouvez vos coûts réels, factures, commandes et documents dans un espace réservé à votre entreprise.</p>
+        </div>
+        <p class="security-note"><span aria-hidden="true">✓</span> Données séparées et accès sécurisé</p>
+      </section>
+
+      <section class="form-pane">
+        <div class="auth-shell">
+          <div class="auth-switch" role="tablist" aria-label="Choisir une action">
+            <button class="active" type="button" role="tab" aria-selected="true" data-auth-view="login">Connexion</button>
+            <button type="button" role="tab" aria-selected="false" data-auth-view="register">Créer mon compte</button>
+          </div>
+
+        <form id="loginForm" class="login-form auth-panel" data-auth-panel="login" novalidate>
+          <div>
+            <p class="eyebrow">Espace client</p>
+            <h2>Se connecter</h2>
+            <p class="form-intro">Utilisez les accès fournis avec votre abonnement Nova+.</p>
+          </div>
+          <label>
+            <span>Identifiant</span>
+            <input id="identifier" name="identifier" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus />
+          </label>
+          <label>
+            <span>Mot de passe</span>
+            <span class="password-field">
+              <input id="password" name="password" type="password" autocomplete="current-password" required />
+              <button id="togglePassword" type="button" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+          </label>
+          <p id="loginError" class="form-error" role="alert" aria-live="polite"></p>
+          <button id="submitButton" class="submit-button" type="submit">Accéder à Nova+</button>
+          <p class="support-copy">Accès perdu ? Contactez votre administrateur Nova+.</p>
+        </form>
+
+        <form id="registerForm" class="login-form auth-panel hidden" data-auth-panel="register" novalidate>
+          <div>
+            <p class="eyebrow">Nouvel espace</p>
+            <h2>Créer mon compte</h2>
+            <p class="form-intro">Votre espace Nova+ sera créé et accessible immédiatement.</p>
+          </div>
+          <label>
+            <span>Nom de l’entreprise</span>
+            <input name="displayName" type="text" maxlength="80" autocomplete="organization" placeholder="Entreprise Dupont" required />
+          </label>
+          <label>
+            <span>Choisissez un identifiant</span>
+            <input name="identifier" type="text" minlength="3" maxlength="64" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="entreprise-dupont" required />
+            <small>Lettres, chiffres, point, tiret ou underscore.</small>
+          </label>
+          <div class="register-passwords">
+            <label>
+              <span>Mot de passe</span>
+              <input name="password" type="password" minlength="10" autocomplete="new-password" placeholder="10 caractères minimum" required />
+            </label>
+            <label>
+              <span>Confirmer</span>
+              <input name="passwordConfirm" type="password" minlength="10" autocomplete="new-password" required />
+            </label>
+          </div>
+          <p id="registerError" class="form-error" role="alert" aria-live="polite"></p>
+          <button id="registerButton" class="submit-button" type="submit">Créer mon espace Nova+</button>
+          <p class="support-copy">Déjà inscrit ? <button type="button" data-auth-view="login">Connectez-vous</button></p>
+        </form>
+        </div>
+      </section>
+    </main>
+    <script src="/login.js"></script>
+  </body>
+</html>

@@ -1,7 +1,9 @@
-const STORAGE_KEY = "nova-plus-mvp-state-v3";
+const STORAGE_KEY_PREFIX = "nova-plus-state-v4";
 const SERVER_STORAGE_ENABLED = window.location.protocol !== "file:";
 let serverSaveTimer = null;
 let pendingProjectDocumentFiles = [];
+let currentAccount = null;
+let adminAccounts = [];
 
 const defaultState = {
   activeView: "dashboard",
@@ -320,10 +322,116 @@ const elements = {
   projectForm: document.querySelector("#projectForm"),
   invoiceForm: document.querySelector("#invoiceForm"),
   libraryForm: document.querySelector("#libraryForm"),
+  accountAvatar: document.querySelector("#accountAvatar"),
+  accountName: document.querySelector("#accountName"),
+  accountIdentifier: document.querySelector("#accountIdentifier"),
+  logoutButton: document.querySelector("#logoutButton"),
+  accountAdminPanel: document.querySelector("#accountAdminPanel"),
+  accountForm: document.querySelector("#accountForm"),
+  accountCount: document.querySelector("#accountCount"),
+  accountAdminStatus: document.querySelector("#accountAdminStatus"),
+  accountsList: document.querySelector("#accountsList"),
+  accountPasswordDialog: document.querySelector("#accountPasswordDialog"),
+  accountPasswordForm: document.querySelector("#accountPasswordForm"),
+  accountPasswordTarget: document.querySelector("#accountPasswordTarget"),
+  accountPasswordStatus: document.querySelector("#accountPasswordStatus"),
 };
 
 function searchTerm() {
   return (elements.globalSearch.value || "").trim().toLowerCase();
+}
+
+function storageKey() {
+  const accountScope = currentAccount?.id || (SERVER_STORAGE_ENABLED ? "pending" : "local");
+  return `${STORAGE_KEY_PREFIX}:${accountScope}`;
+}
+
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, options);
+  if (response.status === 401 && !url.startsWith("/api/auth/")) {
+    window.location.replace("/connexion");
+  }
+  return response;
+}
+
+async function loadCurrentAccount() {
+  if (!SERVER_STORAGE_ENABLED) return null;
+  const response = await fetch("/api/auth/session", { cache: "no-store" });
+  if (!response.ok) {
+    window.location.replace("/connexion");
+    return null;
+  }
+  const payload = await response.json();
+  return payload.user || null;
+}
+
+function renderCurrentAccount() {
+  if (!currentAccount) return;
+  elements.accountName.textContent = currentAccount.displayName;
+  elements.accountIdentifier.textContent = currentAccount.identifier;
+  elements.accountAvatar.textContent = currentAccount.displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "N+";
+}
+
+async function loadAdminAccounts() {
+  if (currentAccount?.role !== "admin") return;
+  const response = await apiFetch("/api/admin/accounts", { cache: "no-store" });
+  if (!response.ok) return showAccountAdminStatus("Impossible de charger les comptes.", "error");
+  const payload = await response.json();
+  adminAccounts = payload.accounts || [];
+  renderAdminAccounts();
+}
+
+function renderAdminAccounts() {
+  if (currentAccount?.role !== "admin") return;
+  elements.accountAdminPanel.classList.remove("hidden");
+  elements.accountCount.textContent = `${adminAccounts.length} compte${adminAccounts.length > 1 ? "s" : ""}`;
+  elements.accountsList.innerHTML = adminAccounts
+    .map((account) => {
+      const isCurrent = account.id === currentAccount.id;
+      const creationDate = account.createdAt ? dateFormatter.format(new Date(account.createdAt)) : "Date inconnue";
+      return `
+        <article class="account-row${account.disabled ? " is-disabled" : ""}">
+          <div>
+            <strong>${escapeHtml(account.displayName)}</strong>
+            <span>${escapeHtml(account.identifier)}${isCurrent ? " · votre compte" : ""}</span>
+          </div>
+          <div>
+            <strong>${account.role === "admin" ? "Administrateur" : "Client"}</strong>
+            <small>Créé le ${escapeHtml(creationDate)}</small>
+          </div>
+          <div>
+            <span class="status-pill ${account.disabled ? "danger" : "done"}">${account.disabled ? "Désactivé" : "Actif"}</span>
+          </div>
+          <div class="account-row-actions">
+            <button class="upload-button compact" type="button" data-reset-account-password="${account.id}">Mot de passe</button>
+            ${isCurrent ? "" : `<button class="upload-button compact${account.disabled ? "" : " danger-action"}" type="button" data-toggle-account="${account.id}" data-disabled="${account.disabled}">${account.disabled ? "Réactiver" : "Désactiver"}</button>`}
+          </div>
+        </article>`;
+    })
+    .join("");
+}
+
+function showAccountAdminStatus(message, tone = "") {
+  elements.accountAdminStatus.textContent = message;
+  elements.accountAdminStatus.className = `account-admin-status${tone ? ` is-${tone}` : ""}`;
+}
+
+async function updateAdminAccount(accountId, changes) {
+  const response = await apiFetch(`/api/admin/accounts/${encodeURIComponent(accountId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Modification impossible.");
+  await loadAdminAccounts();
+  return payload.account;
 }
 
 function includesSearch(...values) {
@@ -336,7 +444,7 @@ document.querySelector("#todayLabel").textContent = `Aujourd'hui ${dateFormatter
 
 function loadState() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey());
     if (!saved) return hydrateSupplyOrders(structuredClone(defaultState));
     return hydrateSupplyOrders(mergeState(structuredClone(defaultState), JSON.parse(saved)));
   } catch {
@@ -384,7 +492,7 @@ function hydrateSupplyOrders(nextState) {
 function saveState() {
   let savedLocally = true;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey(), JSON.stringify(state));
   } catch (error) {
     savedLocally = false;
     console.warn("Sauvegarde navigateur impossible, tentative serveur.", error);
@@ -409,7 +517,7 @@ function scheduleServerSave() {
 async function saveStateToServer() {
   if (!SERVER_STORAGE_ENABLED) return;
   try {
-    await fetch("/api/state", {
+    await apiFetch("/api/state", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state),
@@ -422,7 +530,7 @@ async function saveStateToServer() {
 async function hydrateStateFromServer() {
   if (!SERVER_STORAGE_ENABLED) return;
   try {
-    const response = await fetch("/api/state", { cache: "no-store" });
+    const response = await apiFetch("/api/state", { cache: "no-store" });
     if (!response.ok) return;
     const serverState = await response.json();
     if (!serverState || !Array.isArray(serverState.projects)) return;
@@ -1263,7 +1371,7 @@ function renderImportReview() {
 }
 
 function lotOptions(selectedLot) {
-  const names = [...new Set([...state.library.map((lot) => lot.name), "Frais chantier", "Gros oeuvre", "Électricité", "Plomberie", "Salle de bain", "Placo isolation", "Revêtements", "Menuiserie", "Peinture", "À classer"])];
+  const names = [...new Set([...state.library.map((lot) => lot.name), "Remise commerciale", "Frais chantier", "Gros oeuvre", "Électricité", "Plomberie", "Salle de bain", "Placo isolation", "Revêtements", "Menuiserie", "Peinture", "À classer"])];
   return names
     .map((name) => `<option value="${escapeHtml(name)}"${name === selectedLot ? " selected" : ""}>${escapeHtml(name)}</option>`)
     .join("");
@@ -2567,7 +2675,7 @@ function fileToStoredDocument(file) {
 async function uploadFileToServer(file) {
   try {
     const dataUrl = await fileToDataUrl(file);
-    const response = await fetch("/api/files", {
+    const response = await apiFetch("/api/files", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2601,6 +2709,89 @@ function fileToDataUrl(file) {
 }
 
 function bindEvents() {
+  elements.logoutButton?.addEventListener("click", async () => {
+    elements.logoutButton.disabled = true;
+    elements.logoutButton.textContent = "Déconnexion…";
+    try { await fetch("/api/auth/logout", { method: "POST" }); } finally { window.location.replace("/connexion"); }
+  });
+
+  elements.accountForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = event.submitter;
+    const form = new FormData(elements.accountForm);
+    if (submitButton) submitButton.disabled = true;
+    showAccountAdminStatus("Création du compte…");
+    try {
+      const response = await apiFetch("/api/admin/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: String(form.get("displayName") || "").trim(),
+          identifier: String(form.get("identifier") || "").trim(),
+          password: String(form.get("password") || ""),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Création impossible.");
+      elements.accountForm.reset();
+      await loadAdminAccounts();
+      showAccountAdminStatus(`Le compte ${payload.account.identifier} est prêt.`, "success");
+    } catch (error) {
+      showAccountAdminStatus(error.message || "Création impossible.", "error");
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  document.body.addEventListener("click", async (event) => {
+    const toggleButton = event.target.closest("[data-toggle-account]");
+    if (toggleButton) {
+      const account = adminAccounts.find((item) => item.id === toggleButton.dataset.toggleAccount);
+      if (!account) return;
+      const nextDisabled = toggleButton.dataset.disabled !== "true";
+      if (nextDisabled && !confirm(`Désactiver l’accès de ${account.displayName} ?`)) return;
+      toggleButton.disabled = true;
+      try {
+        await updateAdminAccount(account.id, { disabled: nextDisabled });
+        showAccountAdminStatus(nextDisabled ? `Le compte ${account.identifier} est désactivé.` : `Le compte ${account.identifier} est réactivé.`, "success");
+      } catch (error) { showAccountAdminStatus(error.message, "error"); }
+      return;
+    }
+
+    const passwordButton = event.target.closest("[data-reset-account-password]");
+    if (passwordButton) {
+      const account = adminAccounts.find((item) => item.id === passwordButton.dataset.resetAccountPassword);
+      if (!account) return;
+      elements.accountPasswordForm.dataset.accountId = account.id;
+      elements.accountPasswordTarget.textContent = `${account.displayName} · ${account.identifier}`;
+      elements.accountPasswordStatus.textContent = "";
+      elements.accountPasswordForm.reset();
+      elements.accountPasswordDialog.showModal();
+      elements.accountPasswordForm.elements.password.focus();
+      return;
+    }
+
+    if (event.target.closest("[data-close-account-password]")) elements.accountPasswordDialog.close();
+  });
+
+  elements.accountPasswordForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const accountId = elements.accountPasswordForm.dataset.accountId;
+    const password = String(new FormData(elements.accountPasswordForm).get("password") || "");
+    const submitButton = event.submitter;
+    if (submitButton) submitButton.disabled = true;
+    elements.accountPasswordStatus.textContent = "Enregistrement…";
+    try {
+      const account = await updateAdminAccount(accountId, { password });
+      elements.accountPasswordDialog.close();
+      showAccountAdminStatus(`Le mot de passe de ${account.identifier} a été modifié.`, "success");
+    } catch (error) {
+      elements.accountPasswordStatus.textContent = error.message || "Modification impossible.";
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
   });
@@ -2964,7 +3155,7 @@ function bindEvents() {
   });
 
   elements.resetDataButton.addEventListener("click", () => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey());
     state = structuredClone(defaultState);
     renderAll();
   });
@@ -3468,17 +3659,18 @@ function extractQuoteLines(pageLines) {
   const structured = extractStructuredQuoteLines(pageLines);
   if (structured.length) return structured;
 
-  const ignored = /\b(total|sous[- ]?total|tva|acompt|net\s+a\s+payer|conditions|iban|bic|siret|validite|signature|bon\s+pour|page|devis\s+n|révision|revision|chantier|validité|validite|début|debut|durée|duree|siret|intracommunautaire)\b/i;
+  const ignored = /\b(total|sous[- ]?total|tva|acompt|net\s+a\s+payer|conditions|iban|bic|siret|validite|signature|bon\s+pour|page|devis\s+n|révision|revision|validité|validite|début|debut|durée|duree|siret|intracommunautaire)\b/i;
   const lines = [];
 
   pageLines.forEach((line) => {
     if (ignored.test(line.text)) return;
+    if (window.NovaQuoteParser.isNonBillableLine(line.text)) return;
     if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(line.text)) return;
     const amount = extractLastAmount(line.text);
-    if (!amount || amount < 1) return;
+    if (!Number.isFinite(amount) || amount === 0) return;
     const label = cleanLineLabel(line.text);
     if (label.length < 4) return;
-    const lot = classifyLot(label);
+    const lot = window.NovaQuoteParser.isDiscountLine(line.text) ? "Remise commerciale" : classifyLot(label);
     lines.push({
       label,
       lot,
@@ -3743,8 +3935,8 @@ function dedupeSupplyOrders(lines) {
 
 function extractStructuredQuoteLines(pageLines) {
   const headingPattern = /^(\d{1,2})\s+(.+)$/;
-  const sectionTotalPattern = /^Sous-total\s+(.+?)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})$/i;
-  const itemPattern = /^(\d{1,2}\.\d+)\s+(.+?)\s+(\d+(?:[,.]\d+)?)\s+(ens|u|m2|m²|m3|m³|ml|m|forfait|fft|h)\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})\s+((?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})(?:\s+(\d+(?:,\d+)?))?$/i;
+  const sectionTotalPattern = /^Sous-total\s+(.+?)\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})$/i;
+  const itemPattern = /^(\d{1,2}\.\d+)\s+(.+?)\s+(\d+(?:[,.]\d+)?)\s+(ens|u|m2|m²|m3|m³|ml|m|forfait|fft|h)\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+),\d{2})(?:\s+(\d+(?:,\d+)?))?$/i;
   let currentSection = "";
   const sections = [];
   const itemLines = [];
@@ -3754,17 +3946,36 @@ function extractStructuredQuoteLines(pageLines) {
     if (!text || /\b(devis|validite|validité|désignation|designation|signature|siret|intracommunautaire|conditions generales|mode de reglement|total h\.?t|total t\.?t\.?c|dont main d'oeuvre|tva due)\b/i.test(text)) {
       return;
     }
+    if (window.NovaQuoteParser.isNonBillableLine(text)) return;
+
+    if (window.NovaQuoteParser.isDiscountLine(text)) {
+      const amount = window.NovaQuoteParser.extractLastAmount(text);
+      if (Number.isFinite(amount) && amount !== 0) {
+        itemLines.push({
+          code: "",
+          label: cleanLineLabel(text) || "Remise commerciale",
+          section: currentSection,
+          lot: "Remise commerciale",
+          amount,
+          confidence: 96,
+          page: line.page,
+          raw: text,
+          level: "detail",
+        });
+      }
+      return;
+    }
 
     const sectionTotalMatch = text.match(sectionTotalPattern);
     if (sectionTotalMatch) {
-      const amount = parseFrenchNumber(sectionTotalMatch[2]);
-      if (amount && amount > 0) {
+      const amount = window.NovaQuoteParser.applyDiscountSign(text, window.NovaQuoteParser.parseAmountToken(sectionTotalMatch[2]));
+      if (Number.isFinite(amount) && amount !== 0) {
         const label = normalizeSpaces(sectionTotalMatch[1]);
         sections.push({
           code: "",
           label,
           section: label,
-          lot: classifyLot(label),
+          lot: window.NovaQuoteParser.isDiscountLine(text) ? "Remise commerciale" : classifyLot(label),
           amount,
           confidence: 96,
           page: line.page,
@@ -3784,13 +3995,13 @@ function extractStructuredQuoteLines(pageLines) {
     const itemMatch = text.match(itemPattern);
     if (!itemMatch) return;
 
-    const amount = parseFrenchNumber(itemMatch[6]);
-    if (!amount || amount <= 0) return;
+    const amount = window.NovaQuoteParser.applyDiscountSign(text, window.NovaQuoteParser.parseAmountToken(itemMatch[6]));
+    if (!Number.isFinite(amount) || amount === 0) return;
 
     const code = itemMatch[1];
     const label = normalizeSpaces(`${code} - ${itemMatch[2]}`);
     const context = normalizeSpaces(`${currentSection} ${label}`);
-    const lot = classifyLot(context);
+    const lot = window.NovaQuoteParser.isDiscountLine(text) ? "Remise commerciale" : classifyLot(context);
 
     itemLines.push({
       code,
@@ -3823,20 +4034,13 @@ function extractStructuredQuoteLines(pageLines) {
 }
 
 function extractAllQuoteAmounts(text) {
-  return [...String(text || "").matchAll(/(?:^|\s)(-?(?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.]\d{2}))(?=\s|$)/gi)]
-    .map((match) => parseFrenchNumber(match[1]))
-    .filter((value) => Number.isFinite(value) && value >= 0);
+  return [...String(text || "").matchAll(/(?:^|\s)([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.]\d{2}))(?=\s|$)/gi)]
+    .map((match) => window.NovaQuoteParser.parseAmountToken(match[1]))
+    .filter((value) => Number.isFinite(value) && value !== 0);
 }
 
 function extractLastAmount(text) {
-  const matches = [...text.matchAll(/(?:^|\s)(-?(?:\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.]\d{2})?)\s*(?:€|eur|ht|ttc)?(?=\s|$)/gi)];
-  if (!matches.length) return null;
-
-  for (let index = matches.length - 1; index >= 0; index -= 1) {
-    const value = parseFrenchNumber(matches[index][1]);
-    if (value && value > 0) return value;
-  }
-  return null;
+  return window.NovaQuoteParser.extractLastAmount(text);
 }
 
 function parseFrenchNumber(value) {
@@ -3856,6 +4060,7 @@ function cleanLineLabel(text) {
 function classifyLot(label) {
   const source = normalizeForMatch(label);
   const taxonomy = [
+    { name: "Remise commerciale", keywords: ["remise", "rabais", "ristourne", "escompte", "geste commercial", "avoir"] },
     { name: "Frais chantier", keywords: ["mise en chantier", "manutention", "approvisionnement", "echafaudage", "nettoyage", "decharge", "dechets", "benne"] },
     { name: "Gros oeuvre", keywords: ["demolition", "depose", "toiture", "charpente", "bac acier", "dalle", "fondation", "maconnerie", "mur exterieur", "gouttiere", "ep en pvc", "terrasse", "cave"] },
     { name: "Électricité", keywords: ["electricite", "tableau", "prise", "courant", "interrupteur", "point lumineux", "spot", "32a", "20a"] },
@@ -4051,9 +4256,14 @@ function renderAll() {
 }
 
 async function initApp() {
+  currentAccount = await loadCurrentAccount();
+  if (SERVER_STORAGE_ENABLED && !currentAccount) return;
+  state = loadState();
   bindEvents();
   await hydrateStateFromServer();
+  renderCurrentAccount();
   renderAll();
+  await loadAdminAccounts();
 }
 
 initApp();

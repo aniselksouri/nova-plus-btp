@@ -13,7 +13,8 @@ avec :
 - app Node.js ;
 - sauvegarde persistante ;
 - documents persistants ;
-- mot de passe d'accès ;
+- identifiant et mot de passe du premier compte ;
+- secret de signature des sessions ;
 - HTTPS automatique.
 
 ## Étapes rapides
@@ -33,7 +34,10 @@ avec :
 
 ```text
 DATA_DIR=/data
-NOVA_AUTH_PASSWORD=mot-de-passe-solide
+NOVA_ADMIN_ID=nova
+NOVA_ADMIN_PASSWORD=mot-de-passe-solide
+NOVA_ADMIN_NAME=Mon entreprise
+NOVA_SESSION_SECRET=une-cle-secrete-aleatoire-tres-longue
 NODE_ENV=production
 ```
 
@@ -55,10 +59,10 @@ La page doit répondre :
 { "ok": true }
 ```
 
-Puis ouvrir l'URL principale. Le navigateur demandera un identifiant/mot de passe.
+Puis ouvrir l'URL principale. Nova+ affichera son écran de connexion.
 
-- Identifiant : n'importe quoi
-- Mot de passe : valeur de `NOVA_AUTH_PASSWORD`
+- Identifiant : valeur de `NOVA_ADMIN_ID`
+- Mot de passe : valeur de `NOVA_ADMIN_PASSWORD`
 
 ## Nom de domaine
 

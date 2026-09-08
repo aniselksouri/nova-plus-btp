@@ -4,6 +4,7 @@ node_modules/
 npm-debug.log*
 tmp/
 graphify-out/
+backups/
 
 # Captures et rendus de travail
 preview*.png

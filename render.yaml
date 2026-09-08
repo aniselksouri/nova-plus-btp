@@ -11,7 +11,13 @@ services:
         value: production
       - key: DATA_DIR
         value: /var/data/nova
-      - key: NOVA_AUTH_PASSWORD
+      - key: NOVA_ADMIN_ID
+        value: admin
+      - key: NOVA_ADMIN_PASSWORD
+        sync: false
+      - key: NOVA_ADMIN_NAME
+        value: Administrateur Nova+
+      - key: NOVA_SESSION_SECRET
         sync: false
     disk:
       name: nova-data
