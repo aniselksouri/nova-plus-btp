@@ -19,7 +19,7 @@
 
   function isDiscountLine(text) {
     const normalized = normalizeForQuoteMatch(text);
-    if (/remise\s+(?:en\s+etat|a\s+niveau|en\s+service)/.test(normalized)) return false;
+    if (/remise\s+(?:en\s+(?:etat|service|eau|route|peinture|conformite)|a\s+niveau)/.test(normalized)) return false;
     return DISCOUNT_PATTERN.test(normalized);
   }
 
@@ -61,14 +61,18 @@
 
 
   function detectQuoteTotal(rows) {
-    const totals = [];
+    let gross = null;
+    let net = null;
     for (const row of rows) {
       const text = normalizeForQuoteMatch(row.text);
-      if (!/^(?:net\s+(?:a payer\s+)?h\.?t\.?|total\s+(?:general\s+)?h\.?t\.?|montant\s+total\s+h\.?t\.?)\b/.test(text)) continue;
-      const amount = extractLastAmount(row.text);
-      if (Number.isFinite(amount)) totals.push(amount);
+      const match = text.match(/(?:^|\s)((?:total\s+(?:(?:general|net)\s+)?|net\s+(?:a payer\s+)?|montant\s+total\s+)h\.?\s*t\.?)\s*:?\s*(.*)/);
+      if (!match) continue;
+      const amount = extractLastAmount(match[2]);
+      if (!Number.isFinite(amount)) continue;
+      if (/net/.test(match[1])) net = amount;
+      else gross = amount;
     }
-    return totals.length ? totals[totals.length - 1] : null;
+    return net ?? gross;
   }
 
   // Keep each physical detail row. Identical services may legitimately occur twice.
@@ -78,6 +82,8 @@
     let section = "";
     let amountColumn = null;
     let currentPage = null;
+    let inSummary = false;
+    const codes = rows.map((row) => String(row.text || "").match(/^(\d+(?:\.\d+)*)\s+/)?.[1]).filter(Boolean);
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
       const text = String(row.text || "").replace(/\s+/g, " ").trim();
@@ -89,13 +95,25 @@
         continue;
       }
       if (!text || isNonBillableLine(text)) continue;
+      if (/(?:^|\s)(?:total\s+(?:net\s+)?(?:h\.?\s*t\.?|t\.?\s*t\.?\s*c\.?)|net\s+(?:a payer\s+)?h\.?t\.?)\s*:?\s*[−–-]?\s*\d/.test(normalized) || /^conditions\s+generales/.test(normalized)) inSummary = true;
+      if (inSummary && !isDiscountLine(text)) continue;
+      if (/\b(?:dont\s+main\s+d['’]oeuvre|indemnite|penalite|capital\s+(?:social\s+)?de|dimensions?|localisation)\b/.test(normalized)) continue;
+      if (/^\d+(?:[.,]\d+)?\s*%/.test(normalized)) continue;
+      // A numbered parent with child rows is a group header, even if it carries a subtotal.
+      const numbered = text.match(/^(\d+(?:\.\d+)*)\s+(.+)$/);
+      if (numbered && codes.some((code) => code.startsWith(numbered[1] + "."))) {
+        section = numbered[2].replace(/\s+[−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2}\s*$/, "").trim();
+        continue;
+      }
       if (/^(?:sous[- ]?total|total\b|net\s+a\s+payer|tva\b|acompte\b|solde\b|reste\s+a\s+payer|report\b|a\s+reporter|dont\b)/.test(normalized)) continue;
       if (/\b(?:iban|bic|siret|siren|intracommunautaire|conditions generales|signature|validite|telephone|courriel)\b/.test(normalized)) continue;
       if (/^(?:devis\b|page\b|date\b|client\b|reference\s+client|designation\b)/.test(normalized)) continue;
       let amount = null;
       let label = text;
       // Common quote: number, description, quantity, unit, unit price, total, optional VAT.
-      const detail = text.match(/^(?:(\d+(?:\.\d+)*[.)]?)\s+)?(.+?)\s+([−–-]?\d+(?:[,.]\d+)?)\s+(ens|u|un|unite|m2|m²|m3|m³|ml|m|forfait|fft|h|kg)\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})(?:\s+\d+(?:[,.]\d+)?\s*%?)?$/i);
+      const detailText = text.replace(/^(\d+(?:\.\d+)*)\s+(?=(?:[−–-]?\d+(?:[,.]\d+)?\s+(?:m2|m²|m3|m³|u|ens|h)\s)|(?:(?:m2|m²|m3|m³|u|ens|h)\s+\d))/i, "$1 Description à compléter ");
+      const detail = detailText.match(/^(?:(\d+(?:\.\d+)*[.)]?)\s+)?(.+?)\s+([−–-]?\d+(?:[,.]\d+)?)\s+(ens|u|un|unite|étage|etage|m2|m²|m3|m³|ml|m|forfait|forf|fft|h|kg|jour|offert)\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})(?:\s+\d+(?:[,.]\d+)?\s*%?)?$/i)
+        || detailText.match(/^(?:(\d+(?:\.\d+)*[.)]?)\s+)?(.+?)\s+(ens|u|un|unite|étage|etage|m2|m²|m3|m³|ml|m|forfait|forf|fft|h|kg|jour|offert)\s+([−–-]?\d+(?:[,.]\d+)?)\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})\s+([−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2})(?:\s+\d+(?:[,.]\d+)?\s*%?)?$/i);
       if (detail) {
         amount = applyDiscountSign(text, parseAmountToken(detail[6]));
         label = [detail[1], detail[2]].filter(Boolean).join(" - ");
@@ -110,7 +128,8 @@
       if (amount === null) {
         // A trailing percentage is tax/discount metadata, never a money amount.
         const withoutPercent = text.replace(/\s+\d+(?:[,.]\d+)?\s*%\s*$/, "");
-        amount = extractLastAmount(withoutPercent);
+        const endsWithMoney = /(?:\d[,.]\d{2}\s*\)?[−–-]?\s*(?:€|eur|ht|ttc)?|\d\s*(?:€|eur|ht|ttc))\s*$/i.test(withoutPercent);
+        amount = endsWithMoney ? extractLastAmount(withoutPercent) : null;
         if (amount !== null) label = withoutPercent.replace(/\s+[−–-]?\s*(?:\d{1,3}(?:[ .]\d{3})+|\d+)[,.]\d{2}(?:\s*(?:€|EUR|HT|TTC))?\s*$/i, "");
       }
       if (amount === null) {
@@ -119,10 +138,11 @@
         continue;
       }
       if (!/[A-Za-zÀ-ÿ]{3}/.test(label)) continue;
+      if (!detail && !numbered && !isDiscountLine(text) && (/[+=]/.test(label) || /^(?:prix|base de prix|localisation|dimensions?)\b/i.test(label))) continue;
       const adjustment = isDiscountLine(text);
       const lot = adjustment ? (/moins[ -]value/i.test(normalized) ? "Moins-value" : "Remise commerciale") : section || classify(label);
       result.push({ label, lot, amount, page: row.page, raw: text, sourceRow: index,
-        section, code: detail?.[1] || "", level: "detail", confidence: detail ? 92 : 58 });
+        section, code: detail?.[1] || "", level: "detail", confidence: /Description à compléter/.test(label) ? 20 : detail ? 92 : 58 });
     }
     return result;
   }

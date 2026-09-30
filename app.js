@@ -1251,6 +1251,7 @@ function renderImportReview() {
         <strong>${ok ? "OK" : hasTotal ? money(gap) : "À vérifier"}</strong>
       </article>
     </div>
+    ${pending.document ? renderDocumentLink("Ouvrir le PDF source", pending.document) : ""}
     <p>${pending.mode === "amendment" ? `Avenant ajouté au chantier : ${escapeHtml(state.projects.find((project) => project.id === pending.targetProjectId)?.name || "introuvable")}` : "Nouveau chantier"} · Comparez les lignes au PDF : les regroupements restent modifiables.</p>
     ${!ok ? `<label class="import-confirm"><input type="checkbox" data-confirm-import-total ${pending.confirmedTotal ? "checked" : ""} /> J’ai vérifié les lignes et le total HT dans le PDF (${money(extractedTotal)}).</label>` : ""}
     <div class="review-actions">
@@ -3381,8 +3382,8 @@ async function handleOrderPdfChoice(file) {
 function validatePendingImport() {
   const pending = state.pendingImport;
   if (!pending?.lines?.length) return;
-  if (pending.lines.some((line) => !line.label.trim() || !Number.isFinite(Number(line.amount)))) {
-    alert("Renseignez un libellé et un montant valide pour chaque ligne."); return;
+  if (pending.lines.some((line) => !line.label.trim() || /Description à compléter/.test(line.label) || !Number.isFinite(Number(line.amount)))) {
+    alert("Renseignez un libellé et un montant valide pour chaque ligne, notamment les descriptions à compléter."); return;
   }
   const total = roundCurrency(pending.lines.reduce((sum, line) => sum + Number(line.amount), 0));
   const detected = pending.totalVerified && pending.detectedTotal !== null && pending.detectedTotal !== undefined;
@@ -3939,7 +3940,7 @@ function createProjectFromPdf(fileName, extractedLines = state.extractedLines, r
     archivedAt: "",
     quoteFile: fileName,
     documents: [],
-    rawPdfText: rawText.slice(0, 15000),
+    rawPdfText: rawText,
     lots,
     invoices: defaultInvoiceSchedule(todayIso, localIsoDate(end)),
   };

@@ -69,3 +69,21 @@ test("reconnaît les moins-values et ne fabrique pas un total PDF", () => {
 test('une remise en état est une prestation positive, pas une remise commerciale', () => {
   assert.equal(parser.extractQuoteRows(rows(['Remise en état des murs 500,00']))[0].amount,500);
 });
+test('ignore les en-têtes de colonnes, totaux de sections, dimensions et conditions de paiement', () => {
+  const input=rows(['N° Désignation U Qté PUHT Total H.T TVA',
+    '1 ELECTRICITE 200,00', '1.1 Pose de prises U 2 100,00 200,00 10,00',
+    'Dimensions : longueur 1,20 m', 'verni, larg. 18.00 cm',
+    '2 MENUISERIE 300,00', '2.1 Pose porte U 1 300,00 300,00',
+    'Texte légal Total H.T 500,00', 'Remise 50,00', 'Texte légal Total Net H.T 450,00',
+    'Texte légal Dont main d’oeuvre 200,00', 'Texte légal Total T.T.C 495,00',
+    '30.00% au milieu du chantier, soit 148.50 EUR TTC',
+    'entraînera une indemnité forfaitaire de 40 €']);
+  assert.deepEqual(parser.extractQuoteRows(input).map(l=>l.amount),[200,300,-50]);
+  assert.equal(parser.detectQuoteTotal(input),450);
+});
+test('préserve les montants des lignes sans libellé et des prestations offertes', () => {
+  const lines=parser.extractQuoteRows(rows(['1 Menuiserie','1.1 U 2 150,00 300,00 10,00',
+    '1.2 Pose meuble OFFERT 0 100,00 0,00 10,00','1.3 5,0 m2 20,00 100,00']));
+  assert.deepEqual(lines.map(l=>l.amount),[300,0,100]);
+  assert.match(lines[0].label,/Description à compléter/);
+});
