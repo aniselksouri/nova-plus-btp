@@ -219,12 +219,13 @@ const defaultState = {
   ],
 };
 
-let state = loadState();
+let state;
 
 const formatter = new Intl.NumberFormat("fr-FR", {
   style: "currency",
   currency: "EUR",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 const percentFormatter = new Intl.NumberFormat("fr-FR", {
@@ -361,6 +362,13 @@ function mergeState(base, saved) {
 function hydrateSupplyOrders(nextState) {
   (nextState.projects || []).forEach((project) => {
     if (!Array.isArray(project.documents)) project.documents = [];
+    const invoices = project.invoices || [];
+    if (invoices.length === 2 && Number(invoices[0].percent) === 30 && Number(invoices[1].percent) === 70 && invoices[1].status !== "done") {
+      project.invoiceScheduleHistory = [...(project.invoiceScheduleHistory || []), structuredClone(invoices)];
+      const schedule = defaultInvoiceSchedule(invoices[0].date || project.startDate, invoices[1].date || project.endDate);
+      schedule[0] = invoices[0];
+      project.invoices = schedule;
+    }
     if (project.archived === undefined) project.archived = false;
     (project.supplyOrders || []).forEach((line) => {
       if (line.purchasePrice === undefined) line.purchasePrice = Number(line.finalPrice ?? line.totalHT ?? line.ttc ?? line.unitHT ?? 0);
@@ -437,7 +445,7 @@ function activeProject() {
 }
 
 function money(value) {
-  return formatter.format(Math.round(value || 0));
+  return formatter.format(value || 0);
 }
 
 function supplyPurchasePrice(line) {
@@ -534,24 +542,16 @@ function supplierMatches(lineSupplier = "", supplierName = "") {
 }
 
 function subcontractorAssignments(subcontractorId) {
-  const assignments = [];
-  state.projects.forEach((project) => {
-    (project.lots || []).forEach((lot) => {
-      if (laborType(lot) !== "subcontractor" || lot.subcontractorId !== subcontractorId) return;
-      assignments.push({
-        projectId: project.id,
-        projectName: project.name,
-        client: project.client,
-        lotName: lot.name,
-        startDate: project.startDate || "",
-        endDate: project.endDate || project.startDate || "",
-        progress: lotProgress(lot),
-        sale: Number(lot.sale || 0),
-        amount: Number(lot.labor || 0),
-      });
-    });
-  });
-  return assignments.sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
+  return state.projects.filter((project) => !project.archived).flatMap((project) => {
+    const lots = (project.lots || []).filter((lot) => laborType(lot) === "subcontractor" && lot.subcontractorId === subcontractorId);
+    if (!lots.length) return [];
+    return [{ projectId: project.id, projectName: project.name, client: project.client,
+      lotName: lots.map((lot) => lot.name).join(", "),
+      startDate: project.startDate || "", endDate: project.endDate || project.startDate || "",
+      progress: lots.reduce((sum, lot) => sum + lotProgress(lot), 0) / lots.length,
+      sale: lots.reduce((sum, lot) => sum + Number(lot.sale || 0), 0),
+      amount: lots.reduce((sum, lot) => sum + Number(lot.labor || 0), 0) }];
+  }).sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
 function subcontractorInvoiceProjects(subcontractorId) {
@@ -648,12 +648,9 @@ function lotProgress(lot) {
 }
 
 function projectProgress(project) {
-  const totalSale = projectSale(project);
-  if (totalSale > 0) {
-    return project.lots.reduce((sum, lot) => sum + lotProgress(lot) * Number(lot.sale || 0), 0) / totalSale;
-  }
-  if (!project.lots.length) return 0;
-  return project.lots.reduce((sum, lot) => sum + lotProgress(lot), 0) / project.lots.length;
+  const lots = project.lots.filter((lot) => Number(lot.sale) > 0);
+  const total = lots.reduce((sum, lot) => sum + Number(lot.sale), 0);
+  return total ? lots.reduce((sum, lot) => sum + lotProgress(lot) * Number(lot.sale), 0) / total : 0;
 }
 
 function progressState(progress) {
@@ -691,7 +688,7 @@ function advisedPrice(cost) {
 }
 
 function invoiceMeta(invoice) {
-  const fallbackDate = activeProject()?.startDate || today.toISOString().slice(0, 10);
+  const fallbackDate = activeProject()?.startDate || localIsoDate(today);
   const due = new Date(`${invoice.date || fallbackDate}T00:00:00`);
   const diffDays = Math.round((due - today) / 86400000);
   let color = "green";
@@ -781,10 +778,10 @@ function renderLots() {
     row.innerHTML = `
       <td class="lot-name">
         <div class="lot-title-row">
-          <strong>${lot.name}</strong>
+          <strong>${escapeHtml(lot.name)}</strong>
           <button type="button" data-delete-lot="${lot.id}" aria-label="Supprimer ${escapeHtml(lot.name)}">Supprimer</button>
         </div>
-        <span class="small-note">${lot.source}</span>
+        <span class="small-note">${escapeHtml(lot.source)}</span>
         ${renderLotDetails(lot)}
       </td>
       <td>
@@ -1161,7 +1158,8 @@ function renderProjectPaymentSchedule(project = activeProject()) {
     return;
   }
 
-  elements.projectPaymentSchedule.innerHTML = project.invoices
+  const scheduleTotal = roundCurrency(project.invoices.reduce((sum, invoice) => sum + Number(invoice.percent || 0), 0));
+  elements.projectPaymentSchedule.innerHTML = `<p role="status">Total échéancier : ${scheduleTotal}%${scheduleTotal !== 100 ? " · À corriger pour atteindre 100 %" : ""}</p>` + project.invoices
     .map((invoice) => {
       const meta = invoiceMeta(invoice);
       return `
@@ -1195,23 +1193,20 @@ function renderProjectPaymentSchedule(project = activeProject()) {
 function renderPdf() {
   renderImportReview();
   elements.extractedLines.innerHTML = "";
-  const lines = (state.pendingImport?.lines || state.extractedLines).filter((line) => includesSearch(line.label, line.lot, line.amount));
-
-  lines.forEach((line, index) => {
+  (state.pendingImport?.lines || state.extractedLines).forEach((line, index) => {
+    if (!includesSearch(line.label, line.lot, line.amount)) return;
     const item = document.createElement("div");
     item.className = "extract-row";
     item.innerHTML = `
       <div>
-        <strong>${escapeHtml(line.label)}</strong>
-        <span>${line.code ? `Ligne ${escapeHtml(line.code)} - ` : ""}${line.page ? `page ${line.page}` : "ligne détectée"} - ${money(line.amount)}</span>
+        <input aria-label="Libellé ligne ${index + 1}" data-import-edit="label" data-import-index="${index}" value="${escapeHtml(line.label)}" />
+        <small>${line.page ? `Page ${line.page} · ` : ""}${escapeHtml(line.raw || "Ligne ajoutée manuellement")}</small>
       </div>
-      <div>
-        <select data-import-line-index="${index}" aria-label="Changer le lot de ${escapeHtml(line.label)}">
-          ${lotOptions(line.lot)}
-        </select>
-        <span>${line.confidence || 80}% confiance</span>
-      </div>
-    `;
+      <div class="import-edit-controls">
+        <input type="number" step="0.01" aria-label="Montant HT ligne ${index + 1}" data-import-edit="amount" data-import-index="${index}" value="${Number(line.amount)}" />
+        <select data-import-line-index="${index}" aria-label="Lot ligne ${index + 1}">${lotOptions(line.lot)}</select>
+        <button type="button" class="upload-button compact" data-remove-import-line="${index}">Retirer</button>
+      </div>`;
     elements.extractedLines.appendChild(item);
   });
 }
@@ -1229,8 +1224,9 @@ function renderImportReview() {
   }
 
   const extractedTotal = pending.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
-  const gap = extractedTotal - Number(pending.detectedTotal || extractedTotal);
-  const ok = Math.abs(gap) < 1;
+  const hasTotal = pending.totalVerified && pending.detectedTotal !== null && pending.detectedTotal !== undefined;
+  const gap = hasTotal ? roundCurrency(extractedTotal - pending.detectedTotal) : null;
+  const ok = hasTotal && Math.abs(gap) <= 0.01;
 
   elements.importReview.innerHTML = `
     <div class="review-grid">
@@ -1244,7 +1240,7 @@ function renderImportReview() {
       </article>
       <article>
         <span>Total détecté</span>
-        <strong>${money(pending.detectedTotal)}</strong>
+        <strong>${hasTotal ? money(pending.detectedTotal) : "Non détecté"}</strong>
       </article>
       <article>
         <span>Total importé</span>
@@ -1252,18 +1248,22 @@ function renderImportReview() {
       </article>
       <article class="${ok ? "ok" : "danger"}">
         <span>Écart</span>
-        <strong>${ok ? "OK" : money(gap)}</strong>
+        <strong>${ok ? "OK" : hasTotal ? money(gap) : "À vérifier"}</strong>
       </article>
     </div>
+    ${pending.document ? renderDocumentLink("Ouvrir le PDF source", pending.document) : ""}
+    <p>${pending.mode === "amendment" ? `Avenant ajouté au chantier : ${escapeHtml(state.projects.find((project) => project.id === pending.targetProjectId)?.name || "introuvable")}` : "Nouveau chantier"} · Comparez les lignes au PDF : les regroupements restent modifiables.</p>
+    ${!ok ? `<label class="import-confirm"><input type="checkbox" data-confirm-import-total ${pending.confirmedTotal ? "checked" : ""} /> J’ai vérifié les lignes et le total HT dans le PDF (${money(extractedTotal)}).</label>` : ""}
     <div class="review-actions">
+      <button class="upload-button compact" type="button" data-add-import-line>Ajouter une ligne</button>
       <button class="upload-button compact" type="button" data-cancel-import>Annuler</button>
-      <button class="primary-button compact" type="button" data-validate-import>Valider et créer le chantier</button>
+      <button class="primary-button compact" type="button" data-validate-import>${pending.mode === "amendment" ? "Valider l’avenant" : "Valider et créer le chantier"}</button>
     </div>
   `;
 }
 
 function lotOptions(selectedLot) {
-  const names = [...new Set([...state.library.map((lot) => lot.name), "Frais chantier", "Gros oeuvre", "Électricité", "Plomberie", "Salle de bain", "Placo isolation", "Revêtements", "Menuiserie", "Peinture", "À classer"])];
+  const names = [...new Set([selectedLot, ...state.library.map((lot) => lot.name), "Moins-value", "Remise commerciale", "Frais chantier", "Gros oeuvre", "Électricité", "Plomberie", "Salle de bain", "Placo isolation", "Revêtements", "Menuiserie", "Peinture", "À classer"])];
   return names
     .map((name) => `<option value="${escapeHtml(name)}"${name === selectedLot ? " selected" : ""}>${escapeHtml(name)}</option>`)
     .join("");
@@ -1303,9 +1303,12 @@ function renderOrders() {
   if (!elements.ordersList) return;
   const project = activeProject();
   const orders = Array.isArray(project.supplyOrders) ? project.supplyOrders : [];
+  document.querySelector("#supplyCategories").innerHTML = [...new Set([...project.lots.map((lot) => lot.name), ...orders.map((line) => line.category), "À classer"])].filter(Boolean).map((name) => `<option value="${escapeHtml(name)}"></option>`).join("");
+  const sort = document.querySelector("#supplySort").value;
   const filtered = orders.filter((line) =>
     includesSearch(line.category, line.label, line.supplier, line.reference, line.packageReference, line.deliveryLocation, line.status, line.deliveryDate)
   );
+  filtered.sort((a, b) => sort === "amount" ? supplyPurchasePrice(b) - supplyPurchasePrice(a) : String(a[sort] || "").localeCompare(String(b[sort] || ""), "fr", { numeric: true }));
   const totalFinal = filtered.reduce((sum, line) => sum + Number(line.finalPrice || 0), 0);
   const totalPurchase = filtered.reduce((sum, line) => sum + supplyPurchasePrice(line), 0);
   const totalSale = filtered.reduce((sum, line) => sum + supplySalePrice(line), 0);
@@ -1412,6 +1415,10 @@ function renderOrders() {
                     <small>${supplyLineMeta(line)}</small>
                   </div>
                 </div>
+                <label class="supply-supplier-field">
+                  <span>Catégorie / lot</span>
+                  <input type="text" list="supplyCategories" value="${escapeHtml(line.category || "À classer")}" data-supply-field="category" data-supply-id="${line.id}" />
+                </label>
                 <label class="supply-supplier-field">
                   <span>Fournisseur</span>
                   <select data-supply-field="supplier" data-supply-id="${line.id}">
@@ -1966,7 +1973,7 @@ function groupedOrders(lines) {
     if (!groups.has(category)) groups.set(category, []);
     groups.get(category).push(line);
   });
-  return [...groups.entries()];
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "fr"));
 }
 
 function createSupplyOrderLine(category = "À classer") {
@@ -2166,7 +2173,7 @@ function renderSubcontractors() {
       </div>
       <div class="subcontractor-invoices">
         <div class="subcontractor-section-title">
-          <span>Lancements factures</span>
+          <span>Échéances client (repères)</span>
           <strong>${invoiceReminders.length}</strong>
         </div>
         ${renderSubcontractorInvoices(invoiceReminders)}
@@ -2177,6 +2184,7 @@ function renderSubcontractors() {
           <strong>${invoiceProjects.length}</strong>
         </div>
         ${renderSubcontractorInvoiceExports(subcontractor, invoiceProjects)}
+        ${renderSubcontractorPayments(subcontractor, invoiceProjects)}
       </div>
       <div class="documents-list">
         ${renderDocumentLink("KBIS", subcontractor.documents?.kbis)}
@@ -2601,18 +2609,19 @@ function fileToDataUrl(file) {
 }
 
 function bindEvents() {
+  bindClientFeedbackEvents();
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
   });
 
   elements.targetMarginInput.addEventListener("input", (event) => {
-    state.settings.targetMargin = Number(event.target.value);
+    state.settings.targetMargin = Math.max(0, Math.min(95, Number(event.target.value) || 0));
     saveState();
     renderAll();
   });
 
   elements.targetMarginSetting.addEventListener("input", (event) => {
-    state.settings.targetMargin = Number(event.target.value);
+    state.settings.targetMargin = Math.max(0, Math.min(95, Number(event.target.value) || 0));
     saveState();
     renderAll();
   });
@@ -2636,7 +2645,7 @@ function bindEvents() {
   });
 
   elements.lotsTable.addEventListener("input", (event) => {
-    if (!event.target.matches("[data-lot-id]")) return;
+    if (!event.target.matches("input[data-lot-id]")) return;
     const lot = activeProject().lots.find((item) => item.id === event.target.dataset.lotId);
     const field = event.target.dataset.lotField || "real";
     lot[field] = Number(event.target.value);
@@ -2759,7 +2768,7 @@ function bindEvents() {
     if (event.target.closest("[data-add-project-invoice]")) {
       const project = activeProject();
       project.invoices = Array.isArray(project.invoices) ? project.invoices : [];
-      const due = new Date(`${project.startDate || today.toISOString().slice(0, 10)}T00:00:00`);
+      const due = new Date(`${project.startDate || localIsoDate(today)}T00:00:00`);
       due.setDate(due.getDate() + project.invoices.length * 30);
       const percent = project.invoices.length ? 20 : 30;
       project.invoices.push({
@@ -2767,7 +2776,7 @@ function bindEvents() {
         label: project.invoices.length ? "Situation travaux" : "Acompte",
         action: `Facture ${percent}% à envoyer`,
         percent,
-        date: due.toISOString().slice(0, 10),
+        date: localIsoDate(due),
         status: "pending",
       });
       saveState();
@@ -2922,7 +2931,7 @@ function bindEvents() {
     if (event.target.matches("[data-supply-field]")) {
       updateSupplyOrderLine(event.target);
       saveState();
-      if (["status", "finalPrice", "purchasePrice", "salePrice", "deliveryPrice"].includes(event.target.dataset.supplyField)) {
+      if (["category", "status", "finalPrice", "purchasePrice", "salePrice", "deliveryPrice"].includes(event.target.dataset.supplyField)) {
         renderOrders();
       }
       if (event.target.dataset.supplyField === "supplier") renderSuppliers();
@@ -2933,6 +2942,7 @@ function bindEvents() {
       const index = Number(event.target.dataset.importLineIndex);
       if (!state.pendingImport?.lines[index]) return;
       state.pendingImport.lines[index].lot = event.target.value;
+      state.pendingImport.confirmedTotal = false;
       state.extractedLines = state.pendingImport.lines;
       saveState();
       renderAll();
@@ -3137,7 +3147,7 @@ function updateProjectInvoiceField(input) {
   const invoice = (project.invoices || []).find((item) => item.id === input.dataset.paymentId);
   if (!invoice) return;
   const field = input.dataset.paymentField;
-  invoice[field] = field === "percent" ? Number(input.value) || 0 : input.value;
+  invoice[field] = field === "percent" ? Math.max(0, Math.min(100, Number(input.value) || 0)) : input.value;
   saveState();
   renderTimeline();
   renderBilling();
@@ -3272,7 +3282,8 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-async function handlePdfChoice(file) {
+async function handlePdfChoice(file, mode = "new") {
+  const targetProjectId = mode === "amendment" ? activeProject().id : null;
   if (!file) return;
   if (!window.pdfjsLib) {
     elements.pdfStatus.textContent = "PDF.js indisponible. Vérifiez la connexion internet.";
@@ -3310,7 +3321,11 @@ async function handlePdfChoice(file) {
       fileName: file.name,
       lines: analysis.lines,
       rawText: analysis.text,
-      detectedTotal: analysis.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0),
+      detectedTotal: analysis.detectedTotal,
+      totalVerified: true,
+      mode,
+      targetProjectId,
+      document: await fileToStoredDocument(file),
       createdAt: new Date().toISOString(),
     };
     state.extractedLines = analysis.lines;
@@ -3325,6 +3340,9 @@ async function handlePdfChoice(file) {
     saveState();
     renderAll();
   } finally {
+    elements.pdfInput.value = "";
+    elements.pdfInputSecondary.value = "";
+    document.querySelector("#amendmentPdfInput").value = "";
     elements.simulateImportButton.textContent = "Créer un exemple";
     elements.simulateImportButton.disabled = false;
   }
@@ -3332,6 +3350,7 @@ async function handlePdfChoice(file) {
 
 async function handleOrderPdfChoice(file) {
   if (!file) return;
+  const targetProjectId = activeProject().id;
   if (!window.pdfjsLib) {
     elements.orderStatus.textContent = "PDF.js indisponible. Vérifiez la connexion internet.";
     return;
@@ -3343,9 +3362,11 @@ async function handleOrderPdfChoice(file) {
 
   try {
     const analysis = await analyzeSupplyOrderPdfFile(file);
-    const project = activeProject();
+    const project = state.projects.find((item) => item.id === targetProjectId);
+    if (!project) throw new Error("Le chantier cible n’existe plus.");
+    if (!analysis.lines.length) { alert("Aucune ligne détectée. Les achats existants sont conservés."); return; }
     project.supplyOrderFile = file.name;
-    project.supplyOrders = analysis.lines;
+    project.supplyOrders = [...(project.supplyOrders || []), ...analysis.lines.map((line) => ({ ...line, id: crypto.randomUUID() }))];
     elements.orderStatus.textContent = `${analysis.lines.length} ligne(s) importée(s) sur ${project.name}`;
     saveState();
     renderAll();
@@ -3359,14 +3380,38 @@ async function handleOrderPdfChoice(file) {
 }
 
 function validatePendingImport() {
-  if (!state.pendingImport?.lines?.length) return;
-  const project = createProjectFromPdf(state.pendingImport.fileName, state.pendingImport.lines, state.pendingImport.rawText);
-  state.projects.unshift(project);
+  const pending = state.pendingImport;
+  if (!pending?.lines?.length) return;
+  if (pending.lines.some((line) => !line.label.trim() || /Description à compléter/.test(line.label) || !Number.isFinite(Number(line.amount)))) {
+    alert("Renseignez un libellé et un montant valide pour chaque ligne, notamment les descriptions à compléter."); return;
+  }
+  const total = roundCurrency(pending.lines.reduce((sum, line) => sum + Number(line.amount), 0));
+  const detected = pending.totalVerified && pending.detectedTotal !== null && pending.detectedTotal !== undefined;
+  if ((!detected || Math.abs(total - pending.detectedTotal) > 0.01) && !pending.confirmedTotal) {
+    alert("Contrôlez le total HT dans le PDF puis cochez la confirmation avant de valider."); return;
+  }
+  let project;
+  if (pending.mode === "amendment") {
+    project = state.projects.find((item) => item.id === pending.targetProjectId);
+    if (!project) { alert("Le chantier de cet avenant n’existe plus."); return; }
+    const amendmentId = crypto.randomUUID();
+    project.lots.push(...buildLotsFromExtractedLines(pending.lines).map((lot) => ({ ...lot,
+      amendmentId, source: `Avenant ${pending.fileName} · ${lot.source}` })));
+    project.amendments = [...(project.amendments || []), { id: amendmentId, fileName: pending.fileName, amount: total, createdAt: new Date().toISOString() }];
+  } else {
+    project = createProjectFromPdf(pending.fileName, pending.lines, pending.rawText);
+    state.projects.unshift(project);
+  }
+  if (pending.document) {
+    project.documents = [...(project.documents || []), { id: crypto.randomUUID(),
+      label: `${pending.mode === "amendment" ? "Avenant" : "Devis initial"} · ${pending.fileName}`,
+      category: pending.mode === "amendment" ? "Avenants" : "Devis", files: [pending.document], createdAt: new Date().toISOString() }];
+  }
   state.activeProjectId = project.id;
-  state.extractedLines = state.pendingImport.lines;
+  state.extractedLines = pending.lines;
   state.pendingImport = null;
-  state.activeView = "projects";
-  elements.pdfStatus.textContent = `${project.quoteFile} validé et créé dans Chantiers`;
+  state.activeView = "dashboard";
+  elements.pdfStatus.textContent = `${pending.fileName} intégré à ${project.name}`;
   saveState();
   renderAll();
 }
@@ -3388,20 +3433,15 @@ function createNewProject() {
     name: `Nouveau chantier ${count}`,
     client: "Client à renseigner",
     address: "Adresse à renseigner",
-    startDate: "2026-07-20",
-    endDate: "2026-09-15",
+    startDate: localIsoDate(today),
+    endDate: "",
     status: "Devis",
     archived: false,
     archivedAt: "",
     quoteFile: "",
     documents: [],
-    lots: [
-      { id: "preparation", name: "Préparation chantier", source: "Ligne créée manuellement", sale: 5000, material: 1200, labor: 1600, commercial: 250, other: 300, planned: 3500, laborType: "employee", subcontractorId: "" },
-    ],
-    invoices: [
-      { id: "acompte", label: "Acompte", action: "Facture acompte 30%", percent: 30, date: "2026-07-20", status: "pending" },
-      { id: "solde", label: "Solde", action: "Facture solde 70%", percent: 70, date: "2026-09-15", status: "pending" },
-    ],
+    lots: [],
+    invoices: defaultInvoiceSchedule(localIsoDate(today), ""),
   };
 }
 
@@ -3420,6 +3460,7 @@ async function analyzePdfFile(file) {
   return {
     text,
     lines: extractQuoteLines(pageLines),
+    detectedTotal: window.NovaQuoteParser.detectQuoteTotal(pageLines),
   };
 }
 
@@ -3465,31 +3506,7 @@ function textItemsToLines(items, pageNumber) {
 }
 
 function extractQuoteLines(pageLines) {
-  const structured = extractStructuredQuoteLines(pageLines);
-  if (structured.length) return structured;
-
-  const ignored = /\b(total|sous[- ]?total|tva|acompt|net\s+a\s+payer|conditions|iban|bic|siret|validite|signature|bon\s+pour|page|devis\s+n|révision|revision|chantier|validité|validite|début|debut|durée|duree|siret|intracommunautaire)\b/i;
-  const lines = [];
-
-  pageLines.forEach((line) => {
-    if (ignored.test(line.text)) return;
-    if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(line.text)) return;
-    const amount = extractLastAmount(line.text);
-    if (!amount || amount < 1) return;
-    const label = cleanLineLabel(line.text);
-    if (label.length < 4) return;
-    const lot = classifyLot(label);
-    lines.push({
-      label,
-      lot,
-      amount,
-      confidence: lot === "À classer" ? 58 : 86,
-      page: line.page,
-      raw: line.text,
-    });
-  });
-
-  return dedupeQuoteLines(lines).slice(0, 80);
+  return window.NovaQuoteParser.extractQuoteRows(pageLines, classifyLot);
 }
 
 function extractSupplyOrderLines(pageLines, fileName = "") {
@@ -3906,7 +3923,7 @@ function normalizeForMatch(value) {
 function createProjectFromPdf(fileName, extractedLines = state.extractedLines, rawText = "") {
   const cleanName = fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
   const title = cleanName ? titleCase(cleanName) : "Devis importé";
-  const todayIso = today.toISOString().slice(0, 10);
+  const todayIso = localIsoDate(today);
   const end = new Date(today);
   end.setDate(end.getDate() + 60);
   const lots = buildLotsFromExtractedLines(extractedLines);
@@ -3917,18 +3934,15 @@ function createProjectFromPdf(fileName, extractedLines = state.extractedLines, r
     client: "Client à renseigner",
     address: "Adresse à renseigner",
     startDate: todayIso,
-    endDate: end.toISOString().slice(0, 10),
+    endDate: localIsoDate(end),
     status: "Devis importé",
     archived: false,
     archivedAt: "",
     quoteFile: fileName,
     documents: [],
-    rawPdfText: rawText.slice(0, 15000),
+    rawPdfText: rawText,
     lots,
-    invoices: [
-      { id: `pdf-acompte-${Date.now()}`, label: "Acompte", action: "Facture acompte 30%", percent: 30, date: todayIso, status: "pending" },
-      { id: `pdf-solde-${Date.now()}`, label: "Solde réception", action: "Facture solde 70%", percent: 70, date: end.toISOString().slice(0, 10), status: "pending" },
-    ],
+    invoices: defaultInvoiceSchedule(todayIso, localIsoDate(end)),
   };
 }
 
@@ -3943,7 +3957,7 @@ function buildLotsFromExtractedLines(lines) {
   return [...groups.entries()].map(([lotName, group], index) => {
     const sale = group.reduce((sum, line) => sum + Number(line.amount || 0), 0);
     return {
-      id: `pdf-lot-${Date.now()}-${index}`,
+      id: `pdf-lot-${crypto.randomUUID()}`,
       name: lotName,
       source: summarizeExtractedGroup(group),
       sale: roundCurrency(sale),
@@ -3963,38 +3977,26 @@ function buildLotsFromExtractedLines(lines) {
 
 function reassignProjectDetailLine(lotId, lineIndex, newLotName) {
   const project = activeProject();
-  const sourceLot = project.lots.find((lot) => lot.id === lotId);
-  if (!sourceLot?.extractedLines?.[lineIndex]) return;
-
-  const allLines = project.lots.flatMap((lot) => (lot.extractedLines || []).map((line) => ({ ...line })));
-  const targetLine = sourceLot.extractedLines[lineIndex];
-  const lineKey = detailLineKey(targetLine);
-  allLines.forEach((line) => {
-    if (detailLineKey(line) === lineKey) line.lot = newLotName;
-  });
-
-  const previousCosts = new Map(
-    project.lots.map((lot) => [
-      lot.name,
-      {
-        material: lot.material || 0,
-        labor: lot.labor || 0,
-        progress: lotProgress(lot),
-        commercial: lot.commercial || 0,
-        commercialRate: commercialRate(lot),
-        laborType: laborType(lot),
-        subcontractorId: lot.subcontractorId || "",
-        other: lot.other || 0,
-        planned: lot.planned || 0,
-      },
-    ])
-  );
-
-  project.lots = buildLotsFromExtractedLines(allLines).map((lot) => ({
-    ...lot,
-    ...(previousCosts.get(lot.name) || {}),
-  }));
-  state.extractedLines = allLines;
+  const source = project.lots.find((lot) => lot.id === lotId);
+  if (!source?.extractedLines?.[lineIndex] || !newLotName || source.name === newLotName) return;
+  const [line] = source.extractedLines.splice(lineIndex, 1);
+  line.lot = newLotName;
+  source.sale = roundCurrency(Number(source.sale || 0) - Number(line.amount || 0));
+  source.source = source.extractedLines.length ? summarizeExtractedGroup(source.extractedLines) : "Coûts conservés après reclassement";
+  let target = project.lots.find((lot) => lot.id !== source.id && lot.name === newLotName && lot.amendmentId === source.amendmentId && Array.isArray(lot.extractedLines));
+  if (target) {
+    target.extractedLines.push(line);
+    target.sale = roundCurrency(Number(target.sale || 0) + Number(line.amount || 0));
+    target.source = summarizeExtractedGroup(target.extractedLines);
+  } else {
+    target = buildLotsFromExtractedLines([line])[0];
+    if (source.amendmentId) target.amendmentId = source.amendmentId;
+    project.lots.push(target);
+  }
+  if (!source.extractedLines.length && !source.sale && !realCost(source) && !plannedCost(source) && !source.subcontractorId) {
+    project.lots = project.lots.filter((lot) => lot.id !== source.id);
+  }
+  state.extractedLines = project.lots.flatMap((lot) => lot.extractedLines || []);
 }
 
 function detailLineKey(line) {
@@ -4030,6 +4032,127 @@ function titleCase(value) {
     .join(" ");
 }
 
+function localIsoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function defaultInvoiceSchedule(startDate, endDate) {
+  const start = new Date(`${startDate || localIsoDate(today)}T12:00:00Z`);
+  const suppliedEnd = new Date(`${endDate}T12:00:00Z`);
+  const end = Number.isFinite(suppliedEnd.getTime()) && suppliedEnd >= start ? suppliedEnd : new Date(start.getTime() + 60 * 86400000);
+  return [30, 30, 30, 10].map((percent, index) => ({
+    id: crypto.randomUUID(), label: ["Acompte", "Situation 1", "Situation 2", "Solde réception"][index],
+    action: `Facture ${percent}% à envoyer`, percent,
+    date: new Date(start.getTime() + (end - start) * index / 3).toISOString().slice(0, 10), status: "pending",
+  }));
+}
+
+function addQuoteAdjustment(project, { type, label, unit, amount }) {
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value <= 0 || (unit === "percent" && value > 100)) throw new Error("Saisissez un montant positif ou un pourcentage entre 0 et 100.");
+  const base = projectSale(project);
+  if (unit === "percent" && base <= 0) throw new Error("Le total HT doit être positif pour appliquer un pourcentage.");
+  const reduction = roundCurrency(unit === "percent" ? base * value / 100 : value);
+  const name = type === "lesswork" ? "Moins-value" : "Remise commerciale";
+  project.lots.push({ id: crypto.randomUUID(), name, source: `${label || name}${unit === "percent" ? ` · ${value}% de ${money(base)} HT` : ""}`,
+    sale: -reduction, material: 0, labor: 0, commercial: 0, commercialRate: 0, other: 0, planned: 0, progress: 0,
+    adjustmentType: type, adjustmentBase: base, adjustmentRate: unit === "percent" ? value : null,
+    laborType: "employee", subcontractorId: "" });
+}
+
+function subcontractorPaymentSummary(project, subcontractorId, total) {
+  const payments = (project.subcontractorPayments || []).filter((payment) => payment.subcontractorId === subcontractorId);
+  const paid = roundCurrency(payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0));
+  return { payments, paid, remaining: roundCurrency(total - paid), percent: total > 0 ? paid / total * 100 : 0 };
+}
+
+function renderSubcontractorPayments(subcontractor, invoiceProjects) {
+  return invoiceProjects.map((invoiceProject) => {
+    const project = state.projects.find((item) => item.id === invoiceProject.projectId);
+    const summary = subcontractorPaymentSummary(project, subcontractor.id, invoiceProject.totalSubcontractor);
+    return `<section class="subcontractor-payment-panel">
+      <h4>Règlements · ${escapeHtml(project.name)}</h4>
+      <p>Payé : <strong>${money(summary.paid)}</strong> / ${money(invoiceProject.totalSubcontractor)} HT · ${percentFormatter.format(summary.percent)} %</p>
+      <p>${summary.remaining < 0 ? "Trop-perçu" : "Reste à payer"} : <strong>${money(Math.abs(summary.remaining))}</strong></p>
+      ${summary.payments.map((payment) => `<div class="payment-history"><span>${escapeHtml(payment.date)} · ${escapeHtml(payment.label || "Règlement")} · ${money(payment.amount)}</span><button type="button" class="upload-button compact" data-delete-st-payment="${payment.id}" data-project-id="${project.id}">Retirer</button></div>`).join("")}
+      <form class="st-payment-form" data-st-payment-form data-project-id="${project.id}" data-subcontractor-id="${subcontractor.id}">
+        <label>Montant payé HT<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+        <label>Date<input name="date" type="date" value="${localIsoDate(today)}" required /></label>
+        <label>Référence<input name="label" placeholder="Virement, facture…" /></label>
+        <button class="primary-button compact" type="submit">Ajouter un règlement</button>
+      </form>
+    </section>`;
+  }).join("");
+}
+
+function bindClientFeedbackEvents() {
+  document.querySelector("#amendmentPdfInput").addEventListener("change", (event) => handlePdfChoice(event.target.files[0], "amendment"));
+  document.querySelector("#supplySort").addEventListener("change", renderOrders);
+  document.querySelector("#adjustmentForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      addQuoteAdjustment(activeProject(), Object.fromEntries(new FormData(event.target)));
+      event.target.reset(); saveState(); renderAll();
+    } catch (error) { alert(error.message); }
+  });
+  document.body.addEventListener("submit", (event) => {
+    if (!event.target.matches("[data-st-payment-form]")) return;
+    event.preventDefault();
+    const form = event.target;
+    const project = state.projects.find((item) => item.id === form.dataset.projectId);
+    const data = new FormData(form);
+    const amount = Number(data.get("amount"));
+    if (!project || !Number.isFinite(amount) || amount <= 0 || !data.get("date")) return;
+    project.subcontractorPayments = [...(project.subcontractorPayments || []), { id: crypto.randomUUID(),
+      subcontractorId: form.dataset.subcontractorId, amount: roundCurrency(amount), date: data.get("date"), label: data.get("label") }];
+    saveState(); renderSubcontractors();
+  });
+  document.body.addEventListener("change", (event) => {
+    const input = event.target;
+    if (input.matches("[data-payment-id]")) renderProjectPaymentSchedule();
+    if (input.matches("[data-confirm-import-total]") && state.pendingImport) {
+      state.pendingImport.confirmedTotal = input.checked; saveState();
+    }
+    if (input.matches("[data-import-edit]")) {
+      const line = state.pendingImport?.lines[Number(input.dataset.importIndex)];
+      if (!line) return;
+      if (input.dataset.importEdit === "amount" && (!input.value.trim() || !Number.isFinite(Number(input.value)))) { alert("Montant invalide."); renderPdf(); return; }
+      line[input.dataset.importEdit] = input.dataset.importEdit === "amount" ? Number(input.value) : input.value;
+      state.pendingImport.confirmedTotal = false;
+      saveState(); renderImportReview();
+    }
+  });
+  document.body.addEventListener("click", (event) => {
+    if (event.target.closest("[data-apply-client-schedule]")) {
+      const project = activeProject();
+      if ((project.invoices || []).some((invoice) => invoice.status === "done")) {
+        alert("Des factures ont déjà été envoyées. Modifiez les échéances restantes individuellement pour conserver l’historique."); return;
+      }
+      project.invoiceScheduleHistory = [...(project.invoiceScheduleHistory || []), structuredClone(project.invoices || [])];
+      project.invoices = defaultInvoiceSchedule(project.startDate, project.endDate);
+      saveState(); renderAll(); return;
+    }
+    const paymentButton = event.target.closest("[data-delete-st-payment]");
+    if (paymentButton) {
+      const project = state.projects.find((item) => item.id === paymentButton.dataset.projectId);
+      if (!project || !confirm("Retirer ce règlement du suivi ?")) return;
+      project.subcontractorPayments = (project.subcontractorPayments || []).filter((payment) => payment.id !== paymentButton.dataset.deleteStPayment);
+      saveState(); renderSubcontractors(); return;
+    }
+    if (event.target.closest("[data-add-import-line]") && state.pendingImport) {
+      state.pendingImport.lines.push({ label: "Ligne à compléter", lot: "À classer", amount: 0 });
+      state.pendingImport.confirmedTotal = false;
+      saveState(); renderPdf(); return;
+    }
+    const remove = event.target.closest("[data-remove-import-line]");
+    if (remove && state.pendingImport) {
+      state.pendingImport.lines.splice(Number(remove.dataset.removeImportLine), 1);
+      state.pendingImport.confirmedTotal = false;
+      saveState(); renderPdf();
+    }
+  });
+}
+
 function renderAll() {
   renderNavigation();
   renderSettingsControls();
@@ -4051,6 +4174,7 @@ function renderAll() {
 }
 
 async function initApp() {
+  state = loadState();
   bindEvents();
   await hydrateStateFromServer();
   renderAll();
