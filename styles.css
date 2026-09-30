@@ -3209,33 +3209,3 @@ td select:disabled {
     grid-template-columns: 1fr;
   }
 }
-
-/* Quote corrections and independent subcontractor payment tracking. */
-.quote-adjustments { padding: 0 24px 24px; }
-.quote-adjustments .inline-form { margin: 16px 0 8px; padding: 0; border: 0; }
-.quote-adjustments input[type="file"] { display: none; }
-.import-edit-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.import-edit-controls input { width: 130px; }
-.extract-row input:not([type="checkbox"]), .extract-row select, .st-payment-form input, #supplySort, .supply-line input[list] { padding: 9px 10px; border: 1px solid #dbe2ea; border-radius: 8px; min-width: 0; max-width: 100%; background: #fff; color: #152a42; }
-.extract-row > div:first-child > input { width: 100%; }
-.extract-row small { display: block; margin-top: 6px; color: #697586; overflow-wrap: anywhere; }
-.import-confirm { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
-.import-confirm input { width: auto; }
-.subcontractor-payment-panel { margin-top: 16px; padding: 16px; background: #f7f9fc; border: 1px solid #e1e7ef; border-radius: 12px; }
-.subcontractor-payment-panel p { margin: 8px 0; font-size: 13px; }
-.st-payment-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
-.st-payment-form label { display: grid; gap: 6px; font-size: 12px; flex: 1 1 130px; }
-.payment-history { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; font-size: 12px; }
-.orders-actions { flex-wrap: wrap; }
-@media (max-width: 700px) { .extract-row { grid-template-columns: 1fr; } .quote-adjustments { padding: 0 16px 16px; } }
-
-#subcontractorsGrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 620px), 1fr)); align-items: start; }
-.subcontractor-card, .subcontractor-invoices, .subcontractor-payment-panel, .st-payment-form label { min-width: 0; }
-.st-payment-form button { max-width: 100%; white-space: normal; }
-@media (max-width: 700px) { .subcontractor-export-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); } .subcontractor-fields { grid-template-columns: minmax(0,1fr) 90px; } }
-
-#adjustmentForm { display: grid; grid-template-columns: minmax(170px,1fr) minmax(170px,1.5fr) minmax(100px,.7fr) minmax(150px,1fr) auto; gap: 12px; align-items: end; }
-#adjustmentForm label { display: grid; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted); }
-#adjustmentForm input, #adjustmentForm select { width: 100%; }
-@media (max-width: 1100px) { #adjustmentForm { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media (max-width: 600px) { #adjustmentForm { grid-template-columns: minmax(0,1fr); } }

@@ -35,7 +35,7 @@
         <section class="sidebar-panel">
           <p class="panel-label">Objectif marge</p>
           <div class="target-control">
-            <input id="targetMargin" type="range" min="0" max="95" value="28" />
+            <input id="targetMargin" type="range" min="10" max="45" value="28" />
             <strong><span id="targetMarginLabel">28</span>%</strong>
           </div>
           <p class="hint">Le prix conseillé et les alertes se recalculent avec cet objectif.</p>
@@ -156,17 +156,6 @@
             </div>
           </div>
 
-          <div class="quote-adjustments">
-            <label class="upload-button compact"><input id="amendmentPdfInput" type="file" accept="application/pdf" />Ajouter un avenant PDF au chantier</label>
-            <form id="adjustmentForm" class="inline-form">
-              <label>Type<select name="type"><option value="discount">Remise commerciale</option><option value="lesswork">Moins-value</option></select></label>
-              <label>Libellé<input name="label" placeholder="Motif de l’ajustement" required /></label>
-              <label>Valeur<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-              <label>Unité<select name="unit"><option value="amount">€ HT</option><option value="percent">% du total HT actuel</option></select></label>
-              <button class="primary-button compact" type="submit">Déduire du devis</button>
-            </form>
-            <p class="small-note">Les remises et moins-values sont déduites du chiffre d’affaires et de la marge. Un pourcentage est calculé sur le total HT au moment de l’ajout.</p>
-          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -200,7 +189,7 @@
             </label>
             <label>
               <span>Vente HT</span>
-              <input name="sale" type="number" step="50" required />
+              <input name="sale" type="number" min="0" step="50" required />
             </label>
             <label>
               <span>Avancement %</span>
@@ -293,7 +282,6 @@
                   <p class="eyebrow">Paiements chantier</p>
                   <h4>Dates de lancement des factures</h4>
                 </div>
-                <button class="upload-button compact" type="button" data-apply-client-schedule>Échéancier 30 / 30 / 30 / 10</button>
                 <button class="upload-button compact" type="button" data-add-project-invoice>Ajouter une date</button>
               </div>
               <div id="projectPaymentSchedule" class="payment-schedule-list"></div>
@@ -367,8 +355,6 @@
                 <input id="orderPdfInput" type="file" accept="application/pdf" />
                 Importer PDF commande
               </label>
-              <button class="upload-button compact" type="button" data-add-supply-line="À classer">Ajouter un achat</button>
-              <label>Trier les lignes<select id="supplySort"><option value="label">Libellé</option><option value="supplier">Fournisseur</option><option value="status">Statut</option><option value="orderDate">Date d’achat</option><option value="amount">Montant décroissant</option></select></label>
               <button id="exportOrdersButton" class="upload-button compact" type="button">Exporter commandes</button>
             </div>
           </div>
@@ -579,7 +565,7 @@
           <div class="settings-grid">
             <label class="setting-field">
               <span>Marge cible</span>
-              <input id="targetMarginSetting" type="number" min="0" max="95" step="1" value="28" />
+              <input id="targetMarginSetting" type="number" min="10" max="45" step="1" value="28" />
             </label>
             <label class="setting-field">
               <span>Rouge si marge sous</span>
@@ -599,7 +585,6 @@
     </div>
 
     <datalist id="supplierNameOptions"></datalist>
-    <datalist id="supplyCategories"></datalist>
     <dialog id="documentPreviewModal" class="document-preview-modal">
       <div class="document-preview-shell">
         <div class="document-preview-head">
@@ -614,7 +599,6 @@
     </dialog>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="./quote-parser.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
