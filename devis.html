@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Commercial et devis · Nova+</title>
+    <link rel="stylesheet" href="/admin.css" />
+    <link rel="stylesheet" href="/devis.css" />
+    <link rel="stylesheet" href="/crm.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="back" href="/"><span aria-hidden="true">←</span> Suivi des chantiers</a>
+      <div class="who">
+        <span id="whoAvatar" class="avatar">··</span>
+        <span><strong id="whoName">…</strong><small id="whoRole"></small></span>
+        <a class="ghost-link" href="/admin.html">Compte</a>
+      </div>
+    </header>
+
+    <main class="page wide">
+      <div class="page-head">
+        <p class="eyebrow" id="pageEyebrow">Devis et marges</p>
+        <h1 id="pageTitle">Dossiers</h1>
+      </div>
+      <nav class="tabs" aria-label="Sections commercial et devis">
+        <a href="#pipeline" data-section="pipeline" data-grant="crm.read_all crm.read_own" hidden>Leads</a>
+        <a href="#tableau-de-bord" data-section="tableau-de-bord" data-grant="goals.view" hidden>Tableau de bord</a>
+        <a href="#dossiers" data-section="dossiers">Dossiers et devis</a>
+        <a href="#bibliotheque" data-section="bibliotheque">Bibliothèque</a>
+        <a href="#sous-traitants" data-section="sous-traitants">Sous-traitants et grilles</a>
+        <a href="#exceptions" data-section="exceptions" data-grant="quotes.exceptions_report" hidden>Exceptions</a>
+        <a href="#commissions" data-section="commissions" data-grant="goals.view commissions.all" hidden>Commissions</a>
+        <a href="#objectifs" data-section="objectifs" data-grant="goals.manage crm.settings" hidden>Objectifs et réglages</a>
+      </nav>
+      <div id="view" class="panel" aria-live="polite"></div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="/pricing.js"></script>
+    <script src="/devis.js"></script>
+    <script src="/devis-quote.js"></script>
+    <script src="/devis-catalog.js"></script>
+    <script src="/crm.js"></script>
+  </body>
+</html>

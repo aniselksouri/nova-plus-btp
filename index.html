@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Nova+ - MVP BTP</title>
+    <title>Nova+ · Pilotage BTP</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -22,6 +22,13 @@
           <button class="nav-item" type="button" data-view="projects"><span class="nav-icon site"></span>Chantiers</button>
           <button class="nav-item" type="button" data-view="pdf"><span class="nav-icon pdf"></span>Devis PDF</button>
           <button class="nav-item" type="button" data-view="billing"><span class="nav-icon invoice"></span>Facturation</button>
+          <p class="nav-section">Commercial</p>
+          <a class="nav-item nav-link" href="/devis.html#pipeline"><span class="nav-icon orders"></span>Leads et pipeline</a>
+          <a class="nav-item nav-link" href="/devis.html#tableau-de-bord"><span class="nav-icon dashboard"></span>Objectifs et classement</a>
+          <p class="nav-section">Devis et marges</p>
+          <a class="nav-item nav-link" href="/devis.html#dossiers"><span class="nav-icon pdf"></span>Dossiers et devis</a>
+          <a class="nav-item nav-link" href="/devis.html#bibliotheque"><span class="nav-icon lots"></span>Bibliothèque ouvrages</a>
+          <a class="nav-item nav-link" href="/devis.html#sous-traitants"><span class="nav-icon subcontractors"></span>Grilles sous-traitants</a>
           <p class="nav-section">Pilotage</p>
           <button class="nav-item" type="button" data-view="calendar"><span class="nav-icon calendar"></span>Calendrier</button>
           <button class="nav-item" type="button" data-view="orders"><span class="nav-icon orders"></span>Suivi commande</button>
@@ -50,13 +57,14 @@
             <kbd>⌘ F</kbd>
           </div>
           <div class="account-box">
-            <button type="button" aria-label="Notifications"></button>
-            <button type="button" aria-label="Ajouter"></button>
-            <div class="avatar">AD</div>
-            <div>
-              <strong>Direction travaux</strong>
-              <span>Pilotage BTP</span>
-            </div>
+            <a id="accountLink" class="account-link" href="/admin.html" title="Mon compte">
+              <div id="accountAvatar" class="avatar">··</div>
+              <div>
+                <strong id="accountName">Nova+</strong>
+                <span id="accountRole">Connexion…</span>
+              </div>
+            </a>
+            <button id="logoutButton" class="logout-button" type="button" aria-label="Se déconnecter" title="Se déconnecter"></button>
           </div>
         </div>
 
@@ -422,7 +430,7 @@
                 <p class="eyebrow">Ajout document</p>
                 <h3>Importer et classer un ou plusieurs fichiers</h3>
               </div>
-              <span class="soft-status">Stocké dans ce navigateur</span>
+              <span class="soft-status">Stocké sur le serveur Nova+</span>
             </div>
             <div class="settings-grid">
               <label class="setting-field">
@@ -614,6 +622,7 @@
     </dialog>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="./session.js"></script>
     <script src="./quote-parser.js"></script>
     <script src="./app.js"></script>
   </body>

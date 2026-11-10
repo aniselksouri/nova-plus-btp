@@ -35,6 +35,15 @@ test('échéancier 30/30/30/10 et migration idempotente préservant l’acompte 
   assert.deepEqual(result, [[30,30,30,10],'a','done',1]);
   assert.deepEqual(run('createNewProject().invoices.map(i=>i.percent)'), [30,30,30,10]);
 });
+test('échéancier par défaut repris du profil entreprise, migration historique inchangée', () => {
+  const {run} = app();
+  const result = run(`globalThis.NovaCompany = {billing:{invoiceSchedule:[{label:'Acompte',percent:40},{label:'Solde',percent:60}]}};
+    const created = createNewProject().invoices.map(i=>[i.label,i.percent]);
+    const saved = {projects:[{invoices:[{id:'a',percent:30,status:'done',date:'2026-09-01'},{id:'s',percent:70,status:'pending',date:'2026-10-01'}]}]};
+    hydrateSupplyOrders(saved);
+    [created, saved.projects[0].invoices.map(i=>i.percent)]`);
+  assert.deepEqual(result, [[['Acompte',40],['Solde',60]],[30,30,30,10]]);
+});
 test('un solde déjà envoyé ne subit aucune migration', () => {
   const {run} = app();
   assert.deepEqual(run(`hydrateSupplyOrders({projects:[{invoices:[{percent:30,status:'done'},{percent:70,status:'done'}]}]}).projects[0].invoices.map(i=>i.percent)`), [30,70]);

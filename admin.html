@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Compte et administration · Nova+</title>
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="back" href="/"><span aria-hidden="true">←</span> Retour à Nova+</a>
+      <div class="who">
+        <span id="whoAvatar" class="avatar">··</span>
+        <span><strong id="whoName">…</strong><small id="whoRole"></small></span>
+        <button id="logout" type="button" class="ghost">Se déconnecter</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-head">
+        <p class="eyebrow">Nova+</p>
+        <h1 id="pageTitle">Mon compte</h1>
+      </div>
+
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" role="tab" data-tab="account" aria-selected="true">Mon compte</button>
+        <button type="button" role="tab" data-tab="company" data-admin hidden>Entreprise</button>
+        <button type="button" role="tab" data-tab="team" data-admin hidden>Équipe</button>
+        <button type="button" role="tab" data-tab="data" data-admin hidden>Sécurité des données</button>
+        <button type="button" role="tab" data-tab="audit" data-admin hidden>Journal</button>
+      </nav>
+
+      <!-- Mon compte -->
+      <section class="panel" data-panel="account">
+        <div class="grid two">
+          <article class="card">
+            <h2>Profil</h2>
+            <dl class="facts">
+              <div><dt>Nom</dt><dd id="meName"></dd></div>
+              <div><dt>E-mail</dt><dd id="meEmail"></dd></div>
+              <div><dt>Rôle</dt><dd id="meRole"></dd></div>
+              <div><dt>Double authentification</dt><dd id="meMfa"></dd></div>
+            </dl>
+          </article>
+          <form id="passwordForm" class="card form" novalidate>
+            <h2>Changer de mot de passe</h2>
+            <label><span>Mot de passe actuel</span><input name="currentPassword" type="password" autocomplete="current-password" required /></label>
+            <label><span>Nouveau mot de passe</span><input name="newPassword" type="password" minlength="12" autocomplete="new-password" required /><small>12 caractères minimum. Vos autres sessions seront fermées.</small></label>
+            <label><span>Confirmer</span><input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required /></label>
+            <p class="feedback" role="status" aria-live="polite"></p>
+            <button class="primary" type="submit">Enregistrer</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Entreprise -->
+      <section class="panel" data-panel="company" hidden>
+        <div id="companyMissing"></div>
+        <form id="companyForm" class="company-form" novalidate>
+          <article class="card form">
+            <div class="card-head">
+              <h2>Identité</h2>
+              <p class="muted">Affichée sur la page de connexion, les devis, factures et bons de commande.</p>
+            </div>
+            <div class="logo-row">
+              <div id="logoPreview" class="logo-preview" aria-label="Logo de l'entreprise">Logo</div>
+              <div class="actions">
+                <label class="secondary file-button">Choisir un logo<input id="logoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden /></label>
+                <button id="logoRemove" type="button" class="ghost" hidden>Retirer</button>
+              </div>
+              <small class="muted">PNG, JPG ou WebP, 2 Mo maximum. Fond transparent conseillé.</small>
+            </div>
+            <div class="fields">
+              <label class="span-2"><span>Raison sociale</span><input name="name" maxlength="120" required placeholder="Ex. Rénovation Dupont" /></label>
+              <label><span>Forme juridique</span><input name="legalForm" maxlength="40" placeholder="SAS, SARL…" /></label>
+              <label><span>SIRET</span><input name="siret" inputmode="numeric" maxlength="17" placeholder="14 chiffres" /></label>
+              <label><span>N° TVA intracommunautaire</span><input name="vatNumber" maxlength="20" placeholder="FR…" /></label>
+              <label class="span-2"><span>Adresse</span><input name="address.line" maxlength="200" /></label>
+              <label><span>Code postal</span><input name="address.postalCode" inputmode="numeric" maxlength="10" /></label>
+              <label><span>Ville</span><input name="address.city" maxlength="80" /></label>
+              <label><span>Téléphone</span><input name="phone" type="tel" maxlength="30" /></label>
+              <label><span>E-mail</span><input name="email" type="email" maxlength="160" /></label>
+              <label class="span-2"><span>Site internet</span><input name="website" maxlength="160" placeholder="https://" /></label>
+            </div>
+          </article>
+
+          <article class="card form">
+            <div class="card-head">
+              <h2>Mentions légales BTP</h2>
+              <p class="muted">Obligatoires sur les devis et factures. Chaque entreprise saisit les siennes.</p>
+            </div>
+            <fieldset>
+              <legend>Assurance décennale</legend>
+              <div class="fields">
+                <label><span>Assureur</span><input name="insurance.insurer" maxlength="120" placeholder="Ex. AXA" /></label>
+                <label><span>N° de contrat</span><input name="insurance.policyNumber" maxlength="60" /></label>
+                <label class="span-2"><span>Couverture géographique et activités</span><input name="insurance.coverage" maxlength="300" placeholder="Ex. France métropolitaine, tous corps d'état second œuvre" /></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Qualification RGE</legend>
+              <label class="check"><input name="rge.certified" type="checkbox" /> <span>L'entreprise est certifiée RGE</span></label>
+              <div class="fields" data-rge-fields>
+                <label><span>N° de certificat</span><input name="rge.number" maxlength="60" /></label>
+                <label><span>Organisme</span><input name="rge.body" maxlength="80" placeholder="Qualibat, Qualit'EnR…" /></label>
+                <label><span>Valable jusqu'au</span><input name="rge.validUntil" type="date" /></label>
+              </div>
+            </fieldset>
+          </article>
+
+          <article class="card form">
+            <div class="card-head">
+              <h2>Réglages par défaut</h2>
+              <p class="muted">Valeurs proposées à la création, modifiables ensuite chantier par chantier ou devis par devis.</p>
+            </div>
+            <fieldset>
+              <legend>Échéancier client</legend>
+              <div id="scheduleRows" class="schedule"></div>
+              <div class="schedule-foot">
+                <button id="scheduleAdd" type="button" class="secondary mini">Ajouter une échéance</button>
+                <strong id="scheduleTotal" class="badge"></strong>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>TVA et paiement</legend>
+              <div class="fields">
+                <label><span>Taux proposés (%)</span><input name="vatRatesText" placeholder="20 ; 10 ; 5,5" /><small>20 % neuf et extension, 10 % rénovation de logement de plus de 2 ans, 5,5 % rénovation énergétique.</small></label>
+                <label><span>Taux par défaut</span><select name="billing.defaultVatRate"></select></label>
+                <label><span>Délai de paiement (jours)</span><input name="billing.paymentTermsDays" inputmode="numeric" /></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Marges des devis</legend>
+              <div class="fields three">
+                <label><span>Main-d'œuvre (%)</span><input name="margins.labor" inputmode="decimal" /></label>
+                <label><span>Fourniture (%)</span><input name="margins.supply" inputmode="decimal" /></label>
+                <label><span>Marge nette minimum (%)</span><input name="margins.minimumNet" inputmode="decimal" /></label>
+              </div>
+              <small class="muted">Taux sur le prix de vente : 45 % de marge = 45 € gardés sur 100 € HT facturés (et non +45 % sur le coût). Par défaut pour les nouveaux ouvrages ; un lot ou un ouvrage peut avoir son propre taux.</small>
+            </fieldset>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <div>
+                <h2>Textes des documents</h2>
+                <p class="muted">Repris sur les devis, grilles de prix et bons de commande. Les modèles proposés sont à faire valider par votre juriste ou expert-comptable avant usage.</p>
+              </div>
+            </div>
+            <label><span>Conditions générales du devis</span><textarea name="documents.quoteTerms" rows="5" placeholder="Vos conditions générales de vente (paiement, délais, garanties…)"></textarea></label>
+            <label><span>Mention TVA à taux réduit (10 % ou 5,5 %)</span><textarea name="documents.reducedVatMention" rows="4"></textarea><small>Ajoutée automatiquement aux devis comportant une ligne à taux réduit.</small></label>
+            <label><span>Conditions de la grille de prix sous-traitant</span><textarea name="documents.gridTerms" rows="4"></textarea></label>
+            <label><span>Conditions du bon de commande sous-traitant</span><textarea name="documents.orderTerms" rows="4"></textarea></label>
+          </article>
+
+          <div class="sticky-save">
+            <p class="feedback" role="status" aria-live="polite"></p>
+            <button class="primary" type="submit">Enregistrer le profil</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Équipe -->
+      <section class="panel" data-panel="team" hidden>
+        <div class="grid sidebar">
+          <form id="createUserForm" class="card form" novalidate>
+            <h2>Ajouter un membre</h2>
+            <label><span>Nom</span><input name="displayName" maxlength="80" required placeholder="Prénom Nom" /></label>
+            <label><span>E-mail</span><input name="email" type="email" autocomplete="off" required /></label>
+            <label><span>Rôle</span>
+              <select id="createRole" name="role" required></select>
+              <small id="createRoleHint"></small>
+            </label>
+            <label><span>Taux de commission (%)</span><input name="commissionRate" inputmode="decimal" placeholder="Facultatif" /><small>Visible uniquement par l'administrateur.</small></label>
+            <p class="feedback" role="status" aria-live="polite"></p>
+            <button class="primary" type="submit">Créer le compte</button>
+          </form>
+          <article class="card wide">
+            <div class="card-head">
+              <h2>Membres</h2>
+              <p class="muted">Le secrétariat et les administrateurs utilisent la double authentification.</p>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>Membre</th><th>Rôle</th><th>Commission</th><th>Sécurité</th><th>Dernière connexion</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <tbody id="usersBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Sécurité des données -->
+      <section class="panel" data-panel="data" hidden>
+        <div id="statusCards" class="stats"></div>
+        <div id="warnings"></div>
+        <div class="grid two">
+          <article class="card">
+            <div class="card-head">
+              <h2>Sauvegardes</h2>
+              <p class="muted">Une sauvegarde automatique par jour, 30 conservées. Téléchargez-en une régulièrement pour en garder une copie hors du serveur.</p>
+            </div>
+            <div class="actions">
+              <button id="backupNow" type="button" class="primary">Sauvegarder maintenant</button>
+              <button id="restoreTestLatest" type="button" class="secondary">Tester la restauration</button>
+            </div>
+            <p id="backupFeedback" class="feedback" role="status" aria-live="polite"></p>
+            <ul id="backupList" class="list"></ul>
+          </article>
+          <article class="card">
+            <div class="card-head">
+              <h2>Pièces jointes</h2>
+              <p class="muted">Vérifie que chaque document enregistré existe bien sur le disque persistant.</p>
+            </div>
+            <div class="actions"><button id="filesCheck" type="button" class="secondary">Vérifier les pièces jointes</button></div>
+            <div id="filesReport" class="report"></div>
+          </article>
+        </div>
+        <article class="card">
+          <div class="card-head">
+            <h2>Historique des données</h2>
+            <p class="muted">Chaque enregistrement est conservé 48 h, puis une version par jour pendant 90 jours. Restaurer une version ne supprime rien : elle devient la nouvelle version.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Version</th><th>Date</th><th>Par</th><th>Chantiers</th><th>Taille</th><th>Origine</th><th><span class="sr-only">Action</span></th></tr></thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- Journal -->
+      <section class="panel" data-panel="audit" hidden>
+        <article class="card">
+          <div class="card-head row">
+            <h2>Journal des actions sensibles</h2>
+            <select id="auditFilter" aria-label="Filtrer le journal">
+              <option value="">Toutes les actions</option>
+              <option value="auth">Connexions</option>
+              <option value="user">Comptes</option>
+              <option value="state">Données</option>
+              <option value="backup">Sauvegardes</option>
+              <option value="file">Fichiers</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>Date</th><th>Qui</th><th>Action</th><th>Détail</th><th>IP</th></tr></thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <dialog id="secretDialog" class="dialog">
+      <form method="dialog">
+        <h2 id="secretTitle">Mot de passe temporaire</h2>
+        <p id="secretIntro" class="muted"></p>
+        <code id="secretValue" class="secret"></code>
+        <p class="muted small">Affiché une seule fois. Transmettez-le de vive voix ou par SMS, jamais par e-mail avec l'identifiant. Il devra être changé à la première connexion.</p>
+        <div class="actions">
+          <button id="secretCopy" type="button" class="secondary">Copier</button>
+          <button class="primary" value="close">J'ai transmis le mot de passe</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/admin.js" defer></script>
+  </body>
+</html>

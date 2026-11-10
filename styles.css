@@ -163,6 +163,8 @@ h3 {
   transition: 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+a.nav-item { text-decoration: none; }
+
 .nav-item:hover,
 .nav-item.active {
   background: #f4f5f8;
@@ -3239,3 +3241,78 @@ td select:disabled {
 #adjustmentForm input, #adjustmentForm select { width: 100%; }
 @media (max-width: 1100px) { #adjustmentForm { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 600px) { #adjustmentForm { grid-template-columns: minmax(0,1fr); } }
+
+/* ---------- Compte connecté (socle 2.0) ---------- */
+.account-link {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 10px 4px 4px;
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+.account-link:hover { background: var(--surface-strong); }
+.account-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.account-box .logout-button { position: relative; }
+.account-box button.logout-button::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: auto;
+  border: 1.8px solid #171922;
+  border-left-color: transparent;
+  border-radius: 3px;
+  background: none;
+  box-shadow: none;
+}
+.account-box button.logout-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  width: 9px;
+  height: 1.8px;
+  background: #171922;
+  transform: translateY(-50%);
+}
+.account-box button.logout-button:hover { border-color: var(--red); }
+
+/* ---------- Bandeau de synchronisation ---------- */
+.sync-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 1000;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  width: min(760px, calc(100vw - 32px));
+  padding: 14px 14px 14px 18px;
+  border-radius: 16px;
+  color: #fff;
+  box-shadow: 0 22px 48px rgba(16, 17, 22, 0.28);
+  transform: translateX(-50%);
+  animation: syncBannerIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sync-banner.warning { background: #1d1f27; }
+.sync-banner.danger { background: #a3263d; }
+.sync-banner p { flex: 1; margin: 0; font-size: 14px; line-height: 1.45; }
+.sync-banner button {
+  flex: none;
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #101116;
+  cursor: pointer;
+  font-weight: 720;
+}
+@keyframes syncBannerIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 640px) {
+  .sync-banner { flex-direction: column; align-items: stretch; }
+}
+@media (prefers-reduced-motion: reduce) { .sync-banner { animation: none; } }
