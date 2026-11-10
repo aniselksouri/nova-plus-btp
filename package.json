@@ -6,11 +6,12 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test --test-timeout=120000 tests/*.test.js",
-    "check": "node --check server.js && node --check app.js && node --check login.js && node --check admin.js && node --check session.js && node --check devis.js && node --check devis-quote.js && node --check devis-catalog.js && node --check lib/pricing.js && node --check lib/quotes.js && node --check lib/api-devis.js && node --check crm.js && node --check lib/crm.js && node --check lib/goals.js && node --check lib/api-crm.js && node --check lib/leads-intake.js && node --check scripts/export-json.js",
+    "check": "node --check server.js && node --check app.js && node --check login.js && node --check admin.js && node --check session.js && node --check devis.js && node --check devis-quote.js && node --check devis-catalog.js && node --check lib/pricing.js && node --check lib/quotes.js && node --check lib/api-devis.js && node --check crm.js && node --check lib/crm.js && node --check lib/goals.js && node --check lib/api-crm.js && node --check lib/leads-intake.js && node --check scripts/export-json.js && node --check scripts/verify-chantiers.js",
     "user": "node scripts/user.js",
     "import:json": "node scripts/import-json.js",
     "backup": "node scripts/backup.js",
-    "export:json": "node scripts/export-json.js"
+    "export:json": "node scripts/export-json.js",
+    "verify:chantiers": "node scripts/verify-chantiers.js"
   },
   "engines": {
     "node": ">=20"
