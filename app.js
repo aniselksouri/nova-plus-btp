@@ -495,6 +495,24 @@ function showSyncBanner(kind, detail) {
   return session.banner({ tone: "warning", message: detail || "Enregistrement serveur impossible pour le moment. Nouvel essai à la prochaine modification." });
 }
 
+// Une seule fois par navigateur : si la copie locale diffère des données du serveur (par exemple
+// une modification que l'ancienne version n'avait pas réussi à envoyer), elle est mise de côté
+// avant d'être remplacée, pour pouvoir la récupérer. Elle n'est jamais renvoyée automatiquement.
+const BROWSER_COPY_KEY = "nova-plus-copie-navigateur-avant-migration";
+function keepBrowserCopyOnce(serverState) {
+  try {
+    if (localStorage.getItem(BROWSER_COPY_KEY)) return;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const local = JSON.parse(saved);
+    if (JSON.stringify(local.projects || []) === JSON.stringify(serverState.projects || [])) return;
+    localStorage.setItem(BROWSER_COPY_KEY, JSON.stringify({ keptAt: new Date().toISOString(), data: local }));
+    console.warn("Nova+ : copie locale différente du serveur, conservée sous", BROWSER_COPY_KEY);
+  } catch {
+    // Copie navigateur facultative (stockage plein ou désactivé).
+  }
+}
+
 async function hydrateStateFromServer() {
   if (!SERVER_STORAGE_ENABLED) return;
   try {
@@ -505,6 +523,7 @@ async function hydrateStateFromServer() {
     const serverState = await response.json();
     serverStateVersion = Number.isInteger(version) ? version : null;
     if (!serverState || !Array.isArray(serverState.projects)) return;
+    keepBrowserCopyOnce(serverState);
     state = hydrateSupplyOrders(mergeState(structuredClone(defaultState), serverState));
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));

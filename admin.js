@@ -67,6 +67,7 @@
     "company.logo_updated": "Logo de l'entreprise changé",
     "company.logo_removed": "Logo de l'entreprise retiré",
     "state.json_import": "Reprise de state.json",
+    "state.json_resync": "Reprise de state.json après retour arrière",
     "state.projects_changed": "Chantiers ajoutés ou supprimés",
     "state.conflict": "Conflit d'enregistrement refusé",
     "state.mass_delete_blocked": "Suppression massive bloquée",

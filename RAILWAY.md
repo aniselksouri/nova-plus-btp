@@ -20,14 +20,14 @@ Ce document remplace l'ancienne procédure (mot de passe commun `NOVA_AUTH_PASSW
 | Variable | Valeur | Obligatoire |
 | --- | --- | --- |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (référence au service PostgreSQL, réseau privé) | Oui |
-| `DATA_DIR` | `/data` (le volume existant, qui contient `state.json` et `uploads/`) | Oui |
+| `DATA_DIR` | **Ne pas changer la valeur existante** : le dossier du volume qui contient déjà `state.json` et `uploads/` (par exemple `/data/nova`). Une autre valeur ferait démarrer Nova+ sur un dossier vide. | Oui |
 | `NOVA_SECRET_KEY` | Chaîne aléatoire d'au moins 32 caractères, à conserver dans un gestionnaire de mots de passe | Oui |
 | `NODE_ENV` | `production` | Oui |
 | `NOVA_ADMIN_EMAIL` | E-mail du premier administrateur | Au premier démarrage seulement |
 | `NOVA_ADMIN_PASSWORD` | Mot de passe provisoire (12 caractères minimum), à changer à la première connexion | Au premier démarrage seulement |
 | `NOVA_ADMIN_NAME` | Nom affiché du premier administrateur | Non |
 | `NOVA_COMPANY_NAME` | Raison sociale pré-remplie au premier démarrage (ensuite : Administration › Entreprise) | Non |
-| `NOVA_AUTH_PASSWORD` | **À supprimer** : n'est plus utilisée | — |
+| `NOVA_AUTH_PASSWORD` | N'est plus utilisée par le socle 2.0. **La garder tant qu'un retour arrière reste possible** (l'ancienne version en a besoin), puis la supprimer | — |
 | `META_APP_SECRET` | Clé secrète de l'application Meta (vérifie la signature des webhooks) | Pour les leads Meta |
 | `META_VERIFY_TOKEN` | Chaîne aléatoire choisie, recopiée dans Meta à l'abonnement du webhook | Pour les leads Meta |
 | `META_PAGE_ACCESS_TOKEN` | Jeton d'accès de page longue durée (droit `leads_retrieval`) ; sans lui les leads arrivent incomplets | Pour les leads Meta |
@@ -64,7 +64,7 @@ Rien n'est supprimé au cours de la migration : `state.json` et `uploads/` reste
 
 1. Ajouter un service **PostgreSQL** au projet. Railway › Postgres › **Backups** : activer les sauvegardes planifiées quotidiennes.
 2. Activer aussi les sauvegardes planifiées du volume Nova+.
-3. Service Nova+ : ajouter `DATABASE_URL`, `NOVA_SECRET_KEY`, `NOVA_ADMIN_EMAIL`, `NOVA_ADMIN_PASSWORD` ; supprimer `NOVA_AUTH_PASSWORD`.
+3. Service Nova+ : ajouter `DATABASE_URL`, `NOVA_SECRET_KEY`, `NOVA_ADMIN_EMAIL`, `NOVA_ADMIN_PASSWORD` sans redéployer (`railway variables … --skip-deploys`). Garder `DATA_DIR` et `NOVA_AUTH_PASSWORD` tels quels.
 4. Fusionner `feature/socle-v2` dans `main` (ou déployer la branche).
 5. Au premier démarrage, Nova+ :
    - crée les tables ;
@@ -81,7 +81,7 @@ Rien n'est supprimé au cours de la migration : `state.json` et `uploads/` reste
 2. Se connecter avec `NOVA_ADMIN_EMAIL`, activer la 2FA et choisir un vrai mot de passe.
 3. **Supprimer `NOVA_ADMIN_PASSWORD` des variables Railway.**
 4. Compte › **Sécurité des données** :
-   - le nombre de chantiers est le même qu'avant (18 au 30/09/2026) ;
+   - le nombre de chantiers est le même qu'avant ; contrôle détaillé dans le terminal du service : `npm run verify:chantiers` ;
    - **Vérifier les pièces jointes** : aucun fichier manquant, en dehors des 32 fichiers déjà perdus le 30/09 tant que la cliente ne les a pas renvoyés ;
    - **Sauvegarder maintenant**, puis **Tester la restauration** : le test doit réussir.
 5. Compte › **Entreprise** : compléter SIRET, adresse, assurance décennale, RGE le cas échéant, logo ; vérifier l'échéancier et la TVA par défaut.
@@ -90,14 +90,34 @@ Rien n'est supprimé au cours de la migration : `state.json` et `uploads/` reste
 
 ### Retour arrière
 
+Procédure répétée sur `staging` le 11/11/2026 (nouvelle version → ancienne → nouvelle) : aucune saisie ni pièce jointe perdue.
+
 Si un problème bloquant apparaît après la mise en production :
 
-1. Ouvrir un terminal sur le service (`railway ssh`), puis exporter les données saisies depuis la migration vers `state.json` (une copie de l'ancien fichier est conservée) :
+1. Ouvrir un terminal sur le service (`railway ssh`), puis exporter les données saisies depuis la migration vers `state.json` du dossier de données (une copie de l'ancien fichier est conservée à côté) :
    ```bash
-   npm run export:json -- --file /data/state.json --overwrite
+   npm run export:json -- --file "$DATA_DIR/state.json" --overwrite
    ```
-2. Redéployer le commit précédent dans Railway › Deployments › **Redeploy**.
-3. Remettre `NOVA_AUTH_PASSWORD` le temps de corriger.
+2. Redéployer l'ancien déploiement dans Railway › Deployments › **Redeploy**. Il relit `state.json` et `uploads/` : les chantiers, devis signés et pièces jointes ajoutés entre-temps y sont.
+3. `NOVA_AUTH_PASSWORD` doit encore être présent (voir les variables).
+
+Les modules Devis et commercial (devis, leads, objectifs) n'existent pas dans l'ancienne version : leurs données restent dans PostgreSQL, intactes, et réapparaissent à la bascule suivante.
+
+### Nouvelle bascule après un retour arrière
+
+L'import initial ne se rejoue pas : la base connaît déjà les données. Ce qui a été saisi dans l'ancienne version se reprend ainsi, après le redéploiement de la nouvelle version :
+
+```bash
+npm run import:json -- --resync            # simulation : chantiers ajoutés, modifiés, supprimés
+npm run import:json -- --resync --apply    # enregistre state.json comme nouvelle version
+npm run verify:chantiers
+```
+
+La version précédente reste dans l'historique (Compte › Sécurité des données › Historique). Une reprise qui supprimerait plus d'un chantier est refusée. Les pièces jointes déposées dans l'ancienne version sont recensées automatiquement au démarrage.
+
+### Modifications restées dans un navigateur
+
+L'ancienne version gardait une copie des données dans chaque navigateur. Au premier chargement de la nouvelle version, si cette copie diffère des données du serveur (un envoi qui avait échoué), elle est mise de côté dans le navigateur sous la clé `nova-plus-copie-navigateur-avant-migration`. Elle n'est jamais renvoyée automatiquement : la récupérer depuis les outils de développement du navigateur si un utilisateur signale une saisie manquante.
 
 ## Leads : brancher Meta, Google Ads et le site
 

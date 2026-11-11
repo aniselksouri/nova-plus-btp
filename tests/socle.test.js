@@ -326,3 +326,47 @@ test("restauration réelle : retour exact à la sauvegarde, sauvegarde de sécur
   assert.equal(security.canonicalHash(restored.data), security.canonicalHash(sampleState()));
   assert.equal((await client.get("/api/state")).status, 401, "sessions fermées après restauration");
 });
+
+test("retour arrière puis nouvelle bascule : state.json modifié par l'ancienne version repris comme nouvelle version", async (t) => {
+  const { resyncStateFile } = require("../lib/json-import");
+  const state = sampleState();
+  const server = await startTestServer({ stateJson: JSON.stringify(state) });
+  t.after(() => server.close());
+  const { db, stateStore, fileStore, dataDir } = server.app;
+  const stateFile = path.join(dataDir, "state.json");
+
+  // Rien n'a changé : rien à reprendre.
+  assert.equal((await resyncStateFile(db, { stateFile, stateStore, fileStore })).status, "deja_a_jour");
+
+  // L'ancienne version, remise en ligne, a ajouté un chantier, modifié un autre et déposé un fichier.
+  const edited = sampleState();
+  edited.projects.push({ id: "p4", name: "MAGURU", lots: [{ name: "Peinture", sale: 1200 }], documents: [] });
+  edited.projects[1].lots.push({ name: "Plâtrerie", sale: 900 });
+  edited.library.push({ lot: "Électricité", keywords: ["gaine"] });
+  fs.writeFileSync(stateFile, JSON.stringify(edited));
+  fs.writeFileSync(path.join(server.app.uploadDir, "1800000000000-11111111-2222-3333-4444-555555555555-bon.pdf"), "%PDF-1.4 bon");
+
+  const simulation = await resyncStateFile(db, { stateFile, stateStore, fileStore });
+  assert.equal(simulation.status, "simulation");
+  assert.deepEqual(simulation.diff.added, ["MAGURU"]);
+  assert.deepEqual(simulation.diff.changed, ["COQUART"]);
+  assert.deepEqual(simulation.diff.removed, []);
+  assert.deepEqual(simulation.diff.otherKeys, ["library"]);
+  assert.equal((await stateStore.get()).version, 1, "la simulation n'écrit rien");
+
+  const applied = await resyncStateFile(db, { stateFile, stateStore, fileStore, apply: true });
+  assert.equal(applied.status, "repris");
+  assert.equal(applied.verified, true);
+  assert.equal(applied.version, 2);
+  assert.equal(applied.inventoriedFiles, 1);
+  assert.equal(security.canonicalHash((await stateStore.get()).data), security.canonicalHash(edited));
+  const history = await stateStore.history();
+  assert.ok(history.some((entry) => entry.version === 1), "la version d'avant reste restaurable");
+
+  // Suppression massive refusée : la base n'est pas touchée.
+  fs.writeFileSync(stateFile, JSON.stringify({ ...edited, projects: [edited.projects[0]] }));
+  const refused = await resyncStateFile(db, { stateFile, stateStore, fileStore, apply: true });
+  assert.equal(refused.status, "refuse");
+  assert.equal(refused.reason, "mass_delete");
+  assert.equal((await stateStore.get()).version, 2);
+});
