@@ -1,6 +1,12 @@
 const STORAGE_KEY = "nova-plus-mvp-state-v3";
 const SERVER_STORAGE_ENABLED = window.location.protocol !== "file:";
 let serverSaveTimer = null;
+// Version des données serveur connue de ce poste. null = pas encore chargée : aucun envoi n'est autorisé,
+// pour qu'un poste déconnecté ou en retard ne puisse jamais écraser les données des autres.
+let serverStateVersion = null;
+let serverSyncBlocked = false;
+let serverSaveInFlight = false;
+let serverSaveQueued = false;
 let pendingProjectDocumentFiles = [];
 
 const defaultState = {
@@ -365,7 +371,7 @@ function hydrateSupplyOrders(nextState) {
     const invoices = project.invoices || [];
     if (invoices.length === 2 && Number(invoices[0].percent) === 30 && Number(invoices[1].percent) === 70 && invoices[1].status !== "done") {
       project.invoiceScheduleHistory = [...(project.invoiceScheduleHistory || []), structuredClone(invoices)];
-      const schedule = defaultInvoiceSchedule(invoices[0].date || project.startDate, invoices[1].date || project.endDate);
+      const schedule = defaultInvoiceSchedule(invoices[0].date || project.startDate, invoices[1].date || project.endDate, STANDARD_INVOICE_SCHEDULE);
       schedule[0] = invoices[0];
       project.invoices = schedule;
     }
@@ -410,35 +416,131 @@ function scheduleServerSave() {
   if (!SERVER_STORAGE_ENABLED) return;
   clearTimeout(serverSaveTimer);
   serverSaveTimer = setTimeout(() => {
+    serverSaveTimer = null;
     saveStateToServer();
   }, 350);
 }
 
 async function saveStateToServer() {
-  if (!SERVER_STORAGE_ENABLED) return;
+  if (!SERVER_STORAGE_ENABLED || serverSyncBlocked) return;
+  if (serverStateVersion === null) {
+    showSyncBanner("offline");
+    return;
+  }
+  if (serverSaveInFlight) {
+    serverSaveQueued = true;
+    return;
+  }
+  serverSaveInFlight = true;
   try {
-    await fetch("/api/state", {
+    const response = await fetch("/api/state", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Nova-State-Version": String(serverStateVersion) },
+      credentials: "same-origin",
       body: JSON.stringify(state),
     });
+    if (response.status === 401) return window.NovaSession?.toLogin();
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok) {
+      serverStateVersion = Number(payload.version);
+      showSyncBanner(null);
+      return;
+    }
+    if (response.status === 409) {
+      serverSyncBlocked = true;
+      showSyncBanner(payload.code === "mass_delete" ? "mass_delete" : "conflict", payload.error);
+      return;
+    }
+    showSyncBanner("error", payload.error);
   } catch (error) {
     console.warn("Sauvegarde serveur indisponible.", error);
+    showSyncBanner("error");
+  } finally {
+    serverSaveInFlight = false;
+    if (serverSaveQueued && !serverSyncBlocked) {
+      serverSaveQueued = false;
+      scheduleServerSave();
+    }
+  }
+}
+
+function hasPendingServerSave() {
+  return SERVER_STORAGE_ENABLED && serverStateVersion !== null && !serverSyncBlocked && (serverSaveInFlight || serverSaveQueued || serverSaveTimer !== null);
+}
+
+function showSyncBanner(kind, detail) {
+  const session = window.NovaSession;
+  if (!session) return;
+  const reload = () => window.location.reload();
+  if (!kind) return session.banner(null);
+  if (kind === "conflict") {
+    return session.banner({
+      tone: "danger",
+      message: "Nova+ a été modifié depuis un autre poste. Votre dernière modification n'a pas été enregistrée ici (elle reste conservée par le serveur). Rechargez pour repartir de la version à jour.",
+      actionLabel: "Recharger la version à jour",
+      onAction: reload,
+    });
+  }
+  if (kind === "mass_delete") {
+    return session.banner({ tone: "danger", message: detail || "Enregistrement bloqué : trop de chantiers supprimés d'un coup.", actionLabel: "Recharger", onAction: reload });
+  }
+  if (kind === "offline") {
+    return session.banner({
+      tone: "warning",
+      message: "Serveur injoignable au chargement : vos modifications ne sont pas enregistrées sur le serveur. Rechargez dès que la connexion revient.",
+      actionLabel: "Recharger",
+      onAction: reload,
+    });
+  }
+  return session.banner({ tone: "warning", message: detail || "Enregistrement serveur impossible pour le moment. Nouvel essai à la prochaine modification." });
+}
+
+// Une seule fois par navigateur : si la copie locale diffère des données du serveur (par exemple
+// une modification que l'ancienne version n'avait pas réussi à envoyer), elle est mise de côté
+// avant d'être remplacée, pour pouvoir la récupérer. Elle n'est jamais renvoyée automatiquement.
+const BROWSER_COPY_KEY = "nova-plus-copie-navigateur-avant-migration";
+function keepBrowserCopyOnce(serverState) {
+  try {
+    if (localStorage.getItem(BROWSER_COPY_KEY)) return;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    const local = JSON.parse(saved);
+    if (JSON.stringify(local.projects || []) === JSON.stringify(serverState.projects || [])) return;
+    localStorage.setItem(BROWSER_COPY_KEY, JSON.stringify({ keptAt: new Date().toISOString(), data: local }));
+    console.warn("Nova+ : copie locale différente du serveur, conservée sous", BROWSER_COPY_KEY);
+  } catch {
+    // Copie navigateur facultative (stockage plein ou désactivé).
   }
 }
 
 async function hydrateStateFromServer() {
   if (!SERVER_STORAGE_ENABLED) return;
   try {
-    const response = await fetch("/api/state", { cache: "no-store" });
-    if (!response.ok) return;
+    const response = await fetch("/api/state", { cache: "no-store", credentials: "same-origin" });
+    if (response.status === 401) return window.NovaSession?.toLogin();
+    if (!response.ok) return showSyncBanner("offline");
+    const version = Number(response.headers.get("X-Nova-State-Version"));
     const serverState = await response.json();
+    serverStateVersion = Number.isInteger(version) ? version : null;
     if (!serverState || !Array.isArray(serverState.projects)) return;
+    keepBrowserCopyOnce(serverState);
     state = hydrateSupplyOrders(mergeState(structuredClone(defaultState), serverState));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // Copie navigateur facultative.
+    }
   } catch (error) {
     console.warn("Chargement serveur indisponible, fallback navigateur.", error);
+    showSyncBanner("offline");
   }
 }
+
+window.addEventListener?.("beforeunload", (event) => {
+  if (!hasPendingServerSave()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 function activeProject() {
   return state.projects.find((project) => project.id === state.activeProjectId) || state.projects[0];
@@ -2577,6 +2679,7 @@ async function uploadFileToServer(file) {
     const dataUrl = await fileToDataUrl(file);
     const response = await fetch("/api/files", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: file.name,
@@ -4036,14 +4139,26 @@ function localIsoDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function defaultInvoiceSchedule(startDate, endDate) {
+// Échéancier BTP courant ; chaque entreprise règle le sien dans Administration › Entreprise.
+const STANDARD_INVOICE_SCHEDULE = [
+  { label: "Acompte", percent: 30 }, { label: "Situation 1", percent: 30 },
+  { label: "Situation 2", percent: 30 }, { label: "Solde réception", percent: 10 },
+];
+
+function companyInvoiceSchedule() {
+  const steps = globalThis.NovaCompany?.billing?.invoiceSchedule;
+  return Array.isArray(steps) && steps.length ? steps : STANDARD_INVOICE_SCHEDULE;
+}
+
+function defaultInvoiceSchedule(startDate, endDate, steps = companyInvoiceSchedule()) {
   const start = new Date(`${startDate || localIsoDate(today)}T12:00:00Z`);
   const suppliedEnd = new Date(`${endDate}T12:00:00Z`);
   const end = Number.isFinite(suppliedEnd.getTime()) && suppliedEnd >= start ? suppliedEnd : new Date(start.getTime() + 60 * 86400000);
-  return [30, 30, 30, 10].map((percent, index) => ({
-    id: crypto.randomUUID(), label: ["Acompte", "Situation 1", "Situation 2", "Solde réception"][index],
-    action: `Facture ${percent}% à envoyer`, percent,
-    date: new Date(start.getTime() + (end - start) * index / 3).toISOString().slice(0, 10), status: "pending",
+  const spread = Math.max(steps.length - 1, 1);
+  return steps.map(({ label, percent }, index) => ({
+    id: crypto.randomUUID(), label,
+    action: `Facture ${String(percent).replace(".", ",")}% à envoyer`, percent: Number(percent),
+    date: new Date(start.getTime() + (end - start) * index / spread).toISOString().slice(0, 10), status: "pending",
   }));
 }
 
@@ -4176,6 +4291,7 @@ function renderAll() {
 async function initApp() {
   state = loadState();
   bindEvents();
+  await window.NovaSession?.load();
   await hydrateStateFromServer();
   renderAll();
 }

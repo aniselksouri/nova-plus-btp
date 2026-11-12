@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connexion · Nova+</title>
+    <link rel="stylesheet" href="/login.css" />
+  </head>
+  <body>
+    <main class="login-layout">
+      <section class="product-pane" aria-label="Présentation Nova+">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span><strong>Nova+</strong></div>
+        <div class="product-copy">
+          <img class="company-logo" id="companyLogo" alt="" hidden />
+          <p class="eyebrow" id="companyEyebrow">Pilotage BTP</p>
+          <h1>Vos chantiers.<br />Vos marges.<br /><span>Sous contrôle.</span></h1>
+          <p>Devis, coûts réels, sous-traitants et documents, dans un espace réservé à votre équipe.</p>
+        </div>
+        <p class="security-note"><span aria-hidden="true">✓</span> Compte individuel · double authentification · sauvegarde quotidienne</p>
+      </section>
+
+      <section class="form-pane">
+        <div class="auth-shell">
+          <ol class="steps" aria-label="Étapes de connexion">
+            <li data-step-dot="credentials" class="active">Identifiants</li>
+            <li data-step-dot="mfa">Code</li>
+            <li data-step-dot="password">Mot de passe</li>
+          </ol>
+
+          <!-- Étape 1 : identifiants -->
+          <form id="credentialsForm" class="login-form" data-step="credentials" novalidate>
+            <div>
+              <p class="eyebrow">Espace équipe</p>
+              <h2>Se connecter</h2>
+              <p class="form-intro">Utilisez l'adresse e-mail et le mot de passe fournis par votre administrateur.</p>
+            </div>
+            <label>
+              <span>Adresse e-mail</span>
+              <input id="email" name="email" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus />
+            </label>
+            <label>
+              <span>Mot de passe</span>
+              <span class="password-field">
+                <input id="password" name="password" type="password" autocomplete="current-password" required />
+                <button class="reveal" type="button" data-reveal="password" aria-label="Afficher le mot de passe">Afficher</button>
+              </span>
+            </label>
+            <p class="form-error" role="alert" aria-live="polite"></p>
+            <button class="submit-button" type="submit">Continuer</button>
+            <p class="support-copy">Accès perdu ? Contactez l'administrateur de Nova+.</p>
+          </form>
+
+          <!-- Étape 2a : première configuration de la double authentification -->
+          <form id="enrollForm" class="login-form hidden" data-step="enroll" novalidate>
+            <div>
+              <p class="eyebrow">Sécurité du compte</p>
+              <h2>Activer la double authentification</h2>
+              <p class="form-intro">Votre rôle donne accès aux paiements et aux réglages : un code de votre téléphone est demandé à chaque connexion.</p>
+            </div>
+            <ol class="enroll-steps">
+              <li>Installez une application d'authentification : Google Authenticator, Microsoft Authenticator ou 1Password.</li>
+              <li>Scannez ce QR code, ou saisissez la clé à la main.</li>
+            </ol>
+            <div class="enroll-box">
+              <div id="qrcode" class="qr" aria-label="QR code de configuration"></div>
+              <div class="secret">
+                <span>Clé de configuration</span>
+                <code id="secretText"></code>
+                <button id="copySecret" type="button" class="link-button">Copier la clé</button>
+              </div>
+            </div>
+            <label>
+              <span>Code à 6 chiffres affiché par l'application</span>
+              <input name="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+            </label>
+            <p class="form-error" role="alert" aria-live="polite"></p>
+            <button class="submit-button" type="submit">Activer et continuer</button>
+            <p class="support-copy"><button type="button" class="link-button" data-restart>Recommencer la connexion</button></p>
+          </form>
+
+          <!-- Étape 2b : code de double authentification -->
+          <form id="totpForm" class="login-form hidden" data-step="totp" novalidate>
+            <div>
+              <p class="eyebrow">Double authentification</p>
+              <h2>Code de sécurité</h2>
+              <p class="form-intro">Ouvrez votre application d'authentification et saisissez le code Nova+ à 6 chiffres.</p>
+            </div>
+            <label>
+              <span>Code à 6 chiffres</span>
+              <input name="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+            </label>
+            <p class="form-error" role="alert" aria-live="polite"></p>
+            <button class="submit-button" type="submit">Valider</button>
+            <p class="support-copy">Téléphone perdu ? L'administrateur peut réinitialiser votre double authentification.<br /><button type="button" class="link-button" data-restart>Recommencer la connexion</button></p>
+          </form>
+
+          <!-- Étape 3 : remplacement du mot de passe temporaire -->
+          <form id="passwordForm" class="login-form hidden" data-step="password" novalidate>
+            <div>
+              <p class="eyebrow">Première connexion</p>
+              <h2>Choisissez votre mot de passe</h2>
+              <p class="form-intro">Le mot de passe temporaire reçu doit être remplacé. 12 caractères minimum : une courte phrase est idéale.</p>
+            </div>
+            <label class="current-password">
+              <span>Mot de passe temporaire</span>
+              <input name="currentPassword" type="password" autocomplete="current-password" required />
+            </label>
+            <label>
+              <span>Nouveau mot de passe</span>
+              <span class="password-field">
+                <input id="newPassword" name="newPassword" type="password" minlength="12" autocomplete="new-password" required />
+                <button class="reveal" type="button" data-reveal="newPassword" aria-label="Afficher le mot de passe">Afficher</button>
+              </span>
+              <small class="strength" aria-live="polite">12 caractères minimum.</small>
+            </label>
+            <label>
+              <span>Confirmer</span>
+              <input name="confirmPassword" type="password" minlength="12" autocomplete="new-password" required />
+            </label>
+            <p class="form-error" role="alert" aria-live="polite"></p>
+            <button class="submit-button" type="submit">Enregistrer et ouvrir Nova+</button>
+          </form>
+        </div>
+      </section>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script src="/login.js" defer></script>
+  </body>
+</html>

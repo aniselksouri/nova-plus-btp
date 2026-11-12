@@ -14,3 +14,6 @@ guide-preview*/
 data/state.json
 data/uploads/*
 !data/uploads/.gitkeep
+
+# Outils locaux
+.claude/
