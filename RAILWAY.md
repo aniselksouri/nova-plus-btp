@@ -34,6 +34,7 @@ Ce document remplace l'ancienne procédure (mot de passe commun `NOVA_AUTH_PASSW
 | `META_GRAPH_VERSION` | Version de l'API Graph, `v23.0` par défaut | Non |
 | `NOVA_GOOGLE_LEADS_KEY` | Clé aléatoire, recopiée dans le webhook du formulaire Google Ads | Pour les leads Google |
 | `NOVA_WEBSITE_LEADS_KEY` | Clé aléatoire, envoyée par le site WordPress dans l'en-tête `X-Nova-Key` | Pour le formulaire du site |
+| `NOVA_SUIVI_KEY` | Clé aléatoire, envoyée dans l'en-tête `X-Nova-Key` par la synchro du matin du suivi des tournages Pixtyse (`GET /api/hooks/chantiers`, lecture seule : nom, client, adresse, dates, statut) | Pour le suivi des tournages |
 
 `NOVA_SECRET_KEY` chiffre les secrets de double authentification. Si elle est perdue, chaque utilisateur devra reconfigurer sa 2FA (`npm run user -- reset-2fa --email …`), sans perte de données.
 
