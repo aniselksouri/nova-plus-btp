@@ -784,13 +784,15 @@ function rowHTML(it){
 }
 
 /* Chantiers */
-const FILTERS=[["suivre","À suivre"],["encours","En cours"],["avenir","À venir"],["termines","Terminés"],["publies","Publiés"],["tous","Tous"]];
-function passF(d,f){const p=phase(d);switch(f){case"suivre":return pending(d);case"encours":return p==="encours";case"avenir":return p==="avenir";case"termines":return p==="termine";case"publies":return d.contenu&&d.contenu.statut==="publie";default:return true;}}
+const FILTERS=[["suivre","À suivre"],["encours","En cours"],["avenir","À venir"],["avant","Avant tourné"],["termines","Terminés"],["publies","Publiés"],["tous","Tous"]];
+function passF(d,f){const p=phase(d);switch(f){case"suivre":return pending(d);case"encours":return p==="encours";case"avenir":return p==="avenir";case"avant":return !!(d.avant&&d.avant.statut==="tourne");case"termines":return p==="termine";case"publies":return d.contenu&&d.contenu.statut==="publie";default:return true;}}
 function chantiersHTML(all){
   const q=S.q.trim().toLowerCase();
   const m=all.filter(d=>!q||[d.client,d.ref,d.adresse,d.type,d.notes].join(" ").toLowerCase().includes(q));
   let h='<div class="chips" role="group" aria-label="Filtrer">'+FILTERS.map(([f,l])=>'<button type="button" class="chip" data-act="filter" data-f="'+f+'" aria-pressed="'+(S.filter===f)+'">'+l+'<em>'+m.filter(d=>passF(d,f)).length+'</em></button>').join("")+'</div>';
-  const list=m.filter(d=>passF(d,S.filter)).sort((a,b)=>RANK[level(b)]-RANK[level(a)]||String(a.debut||"9").localeCompare(String(b.debut||"9")));
+  const list=m.filter(d=>passF(d,S.filter)).sort(S.filter==="avant"
+    ?(a,b)=>String(b.avant.faitLe||"").localeCompare(String(a.avant.faitLe||"")) // dernier tourné en premier
+    :(a,b)=>RANK[level(b)]-RANK[level(a)]||String(a.debut||"9").localeCompare(String(b.debut||"9")));
   if(!list.length)return h+'<div class="card calm">'+(q?'Aucun chantier ne correspond à « '+esc(S.q)+' ».':'Aucun chantier dans ce filtre.')+'</div>';
   return h+'<div class="card rows">'+list.map(siteHTML).join("")+'</div>';
 }
