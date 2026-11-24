@@ -56,6 +56,7 @@ svg{flex:none}
 .pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:999px;padding:0 18px;height:40px;font-size:14.5px;font-weight:600;letter-spacing:-.01em;text-decoration:none;white-space:nowrap;transition:transform .2s var(--ease),filter .2s,background-color .2s}
 .pill:active{transform:scale(.96)}
 .pill svg,.lnk svg{width:15px;height:15px}
+.shacts{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none}
 .lnk svg{width:11px;height:11px}
 .pill.v{background:var(--violet);color:var(--on-violet)}
 .pill.v:hover{filter:brightness(1.08)}
@@ -297,7 +298,7 @@ h1 em{font-style:normal;color:var(--violet)}
 
 /* Formulaire */
 .modal{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:max(28px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(28px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-.modal .scrim{position:fixed}
+.modal .scrim{position:fixed;z-index:0}
 .sheet{position:relative;z-index:1;width:min(600px,100%);background:var(--card);border-radius:26px;box-shadow:var(--shadow-lg);animation:pop .4s var(--ease)}
 @keyframes pop{from{transform:translateY(16px) scale(.98);opacity:.2}}
 .sheet form{padding:28px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
@@ -665,9 +666,11 @@ function shootSec(d,k,w){
   const s=shootInfo(d,k),m=d[k]||{},id=esc(d.id),hl=S.hl===k;
   const plans=plansFor(d,k),ck=m.plans||{},n=plans.filter((_,i)=>ck["p"+i]).length;
   const f=m.formats||{photo:true,video:true};
-  let h='<section class="sec l-'+s.lv+(hl?" hl":"")+'" id="sh-'+k+'"><p class="cap">Tournage '+KL[k].toLowerCase()+'</p><div class="shh"><div class="t"><h3>'+esc(s.label)+'</h3>'+(s.sub?'<p>'+esc(s.sub)+'</p>':'')+'</div>';
-  if(w){if(s.lv==="ok"||s.lv==="na")h+='<button class="lnk mut" type="button" data-act="undone" data-id="'+id+'" data-k="'+k+'">'+(s.lv==="ok"?"Annuler":"Remettre à faire")+'</button>';
-    else h+='<button class="pill v" type="button" data-act="done" data-id="'+id+'" data-k="'+k+'">'+I.check+'Marquer tourné</button>';}
+  let h='<section class="sec l-'+s.lv+(hl?" hl":"")+'" id="sh-'+k+'"><p class="cap">Tournage '+KL[k].toLowerCase()+'</p><div class="shh"><div class="t"><h3>'+esc(s.label)+'</h3>'+(s.sub?'<p>'+esc(s.sub.replace(/\.\.$/,"."))+'</p>':'')+'</div>';
+  if(w){const doneBtn='<button class="pill v" type="button" data-act="done" data-id="'+id+'" data-k="'+k+'">'+I.check+'Marquer tourné</button>';
+    if(s.lv==="ok")h+='<button class="lnk mut" type="button" data-act="undone" data-id="'+id+'" data-k="'+k+'">Annuler</button>';
+    else if(s.lv==="na")h+='<div class="shacts">'+doneBtn+'<button class="lnk mut" type="button" data-act="undone" data-id="'+id+'" data-k="'+k+'">Remettre à faire</button></div>';
+    else h+=doneBtn;}
   h+='</div>';
   if(s.lv==="na")return h+'</section>';
   if(s.lv!=="ok")h+='<div class="grid2"><label class="fld">Rendez-vous<input type="datetime-local" id="rdv-'+k+'-'+id+'" data-field="rdv" data-k="'+k+'" data-id="'+id+'" value="'+esc(m.rdv||"")+'"'+(w?"":" readonly")+'></label><div class="fld">À livrer<div class="tgl" role="group" aria-label="Formats à livrer">'+
