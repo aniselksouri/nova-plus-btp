@@ -185,6 +185,14 @@
     },
   };
 
-  const caps = { db, user, assets, downloads };
+  // ---------- Feed Insta (planning validé + médias du volume Nova+) ----------
+  const media = (name, extra) => "/tournages/feed/" + encodeURIComponent(name) + "?k=" + encodeURIComponent(K) + extra;
+  const feed = {
+    list: () => call("GET", "/api/tournages/feed"),
+    src: (name, v) => media(name, v ? "&v=" + encodeURIComponent(v) : ""),
+    dl: (name) => media(name, "&dl=1"),
+  };
+
+  const caps = { db, user, assets, downloads, feed };
   window.claude = { use: async (name) => caps[name] || null };
 })();

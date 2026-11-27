@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { startTestServer } = require("./helpers");
-const { planNovaSync, deepMerge } = require("../lib/tournages");
+const { planNovaSync, deepMerge, parseRange } = require("../lib/tournages");
 
 const day = (offset) => new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10);
 const projects = [
@@ -115,4 +115,66 @@ test("tournages : Nova+ ne remplace une valeur que quand Nova+ la change", () =>
 
   // Supprimé du suivi : ne revient pas.
   assert.equal(planNovaSync(projects, [{ ...doc, deleted: true }], { now }).creates.some((c) => c.id === "nova-chantier-1"), false);
+});
+
+
+test("tournages : feed Insta, médias envoyés une fois puis servis avec la clé, vidéo lue par plages", async (t) => {
+  const server = await startTestServer({ env: { NOVA_TOURNAGES_KEY: KEY }, stateJson: { projects } });
+  t.after(() => server.close());
+
+  const feed = await (await api(server, "/api/tournages/feed")).json();
+  assert.equal(feed.posts.length, 12, "les 12 posts du planning validé");
+  for (const post of feed.posts) {
+    assert.match(post.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(post.description.split("📸 @pixtyseagency").length, 2, `signature unique (post ${post.ordre})`);
+    assert.ok(post.media.length > 0);
+  }
+  const reel = feed.posts.find((p) => p.type === "reel").media[0];
+  assert.equal(reel.ok, false, "rien sur le volume au départ");
+  assert.equal((await fetch(`${server.base}/api/tournages/feed`)).status, 401);
+
+  const video = Buffer.from("0123456789abcdefghij");
+  const put = (name, bytes, headers = {}) => fetch(`${server.base}/api/tournages/feed/${name}`, { method: "PUT", body: bytes, headers: { "X-Tournages-Key": KEY, ...headers } });
+  assert.equal((await put(reel.file, video, { "X-Tournages-Key": "faux" })).status, 401);
+  assert.equal((await put("..%2Fstate.json", video)).status, 400, "pas de sortie du dossier");
+  assert.equal((await put("script.js", video)).status, 400, "seuls les noms du feed sont acceptés");
+  assert.equal((await put(reel.file, video, { Origin: "https://ailleurs.example" })).status, 403);
+  assert.equal((await put(reel.file, video)).status, 200);
+
+  const again = await (await api(server, "/api/tournages/feed")).json();
+  const stored = again.posts.find((p) => p.type === "reel").media[0];
+  assert.equal(stored.ok, true);
+  assert.equal(stored.size, video.length);
+
+  const url = `${server.base}/tournages/feed/${reel.file}?k=${KEY}`;
+  assert.equal((await fetch(`${server.base}/tournages/feed/${reel.file}?k=faux`)).status, 401);
+  const full = await fetch(url);
+  assert.equal(full.status, 200);
+  assert.equal(full.headers.get("content-type"), "video/mp4");
+  assert.equal(full.headers.get("accept-ranges"), "bytes");
+  assert.equal(Buffer.from(await full.arrayBuffer()).toString(), video.toString());
+  const part = await fetch(url, { headers: { Range: "bytes=5-9" } });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get("content-range"), `bytes 5-9/${video.length}`);
+  assert.equal(await part.text(), "56789");
+  assert.equal((await fetch(url, { headers: { Range: "bytes=99-" } })).status, 416);
+  const dl = await fetch(`${url}&dl=1`);
+  assert.match(dl.headers.get("content-disposition"), /attachment; filename="HSM-p\d+\.mp4"/);
+  assert.equal((await fetch(`${server.base}/tournages/feed/p99.mp4?k=${KEY}`)).status, 404);
+  const thumb = feed.posts[0].thumb;
+  assert.equal((await put(thumb, Buffer.from("jpg"))).status, 200, "vignettes de la grille acceptées");
+  assert.ok((await (await api(server, "/api/tournages/feed")).json()).posts[0].thumbV);
+
+  const page = await (await fetch(`${server.base}/tournages?k=${KEY}`)).text();
+  assert.match(page, /data-v="feed"/, "onglet Feed Insta dans la page");
+});
+
+test("tournages : lecture des plages demandées par le lecteur vidéo", () => {
+  assert.deepEqual(parseRange("bytes=0-", 100), { start: 0, end: 99 });
+  assert.deepEqual(parseRange("bytes=10-19", 100), { start: 10, end: 19 });
+  assert.deepEqual(parseRange("bytes=-10", 100), { start: 90, end: 99 });
+  assert.deepEqual(parseRange("bytes=50-500", 100), { start: 50, end: 99 });
+  assert.deepEqual(parseRange("bytes=100-", 100), { invalid: true });
+  assert.equal(parseRange("", 100), null);
+  assert.equal(parseRange("bytes=1-2,4-5", 100), null);
 });
